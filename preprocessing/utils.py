@@ -1,6 +1,6 @@
 import nibabel as nib
 import numpy as np
-
+import json
 
 def add_label_map_to_nifti(img_in, label_map):
     """
@@ -125,3 +125,26 @@ def create_itksnap_label_file(label_mapping, output_path):
             color = colors[idx-1]  # Use generated color
             label_name = part.replace('_', ' ').title()
             f.write(f'{idx:5d} {color[0]:4d} {color[1]:4d} {color[2]:4d}        1  1  1    "{label_name}"\n')
+
+
+def txt_to_json(filename):
+    """
+    Converts a txt file with label names to a json file.
+    The txt file should contain one label name per line.
+    """
+
+    output = {}
+    with open(filename, 'r') as f:
+        label_names = f.read().splitlines()
+
+        for label in label_names:
+            splitted = label.split(":")
+            key = splitted[0]
+            value = splitted[1]
+            output[key] = value
+    
+    json.dump(output, open(filename.replace(".txt", ".json"), "w"), indent=2)
+
+
+if __name__ == "__main__":
+    txt_to_json("../data/totalsegmentator_combined/label_mapping.txt")
