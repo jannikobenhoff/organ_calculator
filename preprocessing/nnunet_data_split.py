@@ -48,6 +48,37 @@ def check_nnunet_data():
     print("Number of test images:", len(test_images))
     print("Number of test labels:", len(test_labels))
 
+def rename_split():
+    """
+    images: {name}_001_0000.nii.gz
+    labels: {name}_001.nii.gz
+    """
+    image_dir = "../data/nnUNet_raw/Dataset101_Totalsegmentator/imagesTr"
+    label_dir = "../data/nnUNet_raw/Dataset101_Totalsegmentator/labelsTr"
+
+    index = 0
+    for i, image in enumerate(os.listdir(image_dir)):
+        os.rename(image_dir + "/" + image, image_dir + f"/ts_{i:03d}_0000.nii.gz")
+    
+    for i, label in enumerate(os.listdir(label_dir)):
+        os.rename(label_dir + "/" + label, label_dir + f"/ts_{i:03d}.nii.gz")
+        index += 1
+
+    image_dir = "../data/nnUNet_raw/Dataset101_Totalsegmentator/imagesTs"
+    label_dir = "../data/nnUNet_raw/Dataset101_Totalsegmentator/labelsTs"
+
+    for i, image in enumerate(os.listdir(image_dir)):
+        i += index
+        os.rename(image_dir + "/" + image, image_dir + f"/ts_{i:03d}_0000.nii.gz")
+    
+    for i, label in enumerate(os.listdir(label_dir)):
+        i += index
+        os.rename(label_dir + "/" + label, label_dir + f"/ts_{i:03d}.nii.gz")
+    
+
 if __name__ == "__main__":
-    split_nnunet_data()
-    # check_nnunet_data()
+    rename_split()
+    # Number of training images: 982
+    # Number of training labels: 982
+    # Number of test images: 246
+    # Number of test labels: 246
