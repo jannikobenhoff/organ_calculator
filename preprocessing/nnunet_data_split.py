@@ -49,5 +49,5 @@ def check_nnunet_data():
     print("Number of test labels:", len(test_labels))
 
 if __name__ == "__main__":
-    # split_nnunet_data()
-    check_nnunet_data()
+    split_nnunet_data()
+    # check_nnunet_data()
