@@ -122,6 +122,6 @@
   "116": " vertebrae_T8",
   "117": " vertebrae_T9"
 }, 
- "numTraining": 32, 
+ "numTraining": 982, 
  "file_ending": ".nii.gz"
  } 
