@@ -140,8 +140,8 @@ def txt_to_json(filename):
         for label in label_names:
             splitted = label.split(":")
             key = splitted[0]
-            value = splitted[1]
-            output[key] = value
+            value = splitted[1].strip()
+            output[value] = int(key)
     
     json.dump(output, open(filename.replace(".txt", ".json"), "w"), indent=2)
 
