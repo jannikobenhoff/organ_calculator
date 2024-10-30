@@ -1,13 +1,15 @@
 #!/bin/bash
 #
-SBATCH --job-name=<jannik_nnunet> # give your job a name
+#SBATCH --partition=sablab-gpu   # cluster-specific
 #SBATCH --nodes=1
-SBATCH --cpus-per-task=15
-SBATCH --time=02:00:00 # set this time according to your need
-SBATCH --mem=200G # how much RAM will your notebook consume? 
-SBATCH --gres=gpu:1 # if you need to use a GPU
-SBATCH -p sablab-gpu # specify partition
-
+#SBATCH --ntasks=1
+#SBATCH --job-name=jannik_segmentation
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=15
+#SBATCH --time=10:00:00   # HH/MM/SS
+#SBATCH --mem=200G   # memory requested, units available: K,M,G,T
+#SBATCH --output /home/jao4016/log/job-%j.out
+#SBATCH --error /home/jao4016/log/job-%j.err
 
 module purge
 module load anaconda3
