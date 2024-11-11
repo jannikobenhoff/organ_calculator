@@ -19,4 +19,4 @@ export nnUNet_raw="/home/jao4016/organ_calculator/data/nnUNet_raw"
 export nnUNet_preprocessed="/home/jao4016/organ_calculator/data/nnUNet_preprocessed"
 export nnUNet_results="/home/jao4016/organ_calculator/data/nnUNet_results"
 
-nnUNetv2_train 101 2d 0
+nnUNetv2_train 101 2d 2

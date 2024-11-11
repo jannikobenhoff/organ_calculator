@@ -20,3 +20,4 @@ export nnUNet_preprocessed="/home/jao4016/organ_calculator/data/nnUNet_preproces
 export nnUNet_results="/home/jao4016/organ_calculator/data/nnUNet_results"
 
 nnUNetv2_predict -i ../data/inference_input -o ../data/inference_output -d 101 -c 2d
+# FileNotFoundError: [Errno 2] No such file or directory: '/home/jao4016/organ_calculator/data/nnUNet_results/Dataset101_Totalsegmentator/nnUNetTrainer__nnUNetPlans__2d/fold_2/checkpoint_final.pth'
