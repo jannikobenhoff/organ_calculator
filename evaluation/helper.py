@@ -3,6 +3,59 @@ from torch import nn, distributed
 
 from typing import Any, Optional, Tuple, Callable
 
+import nibabel as nib
+import torch
+import numpy as np
+
+def load_and_process_nifti(nifti_path, selected_organs=[1, 2, 3, 4]):
+    # Load nifti file
+    nifti_img = nib.load(nifti_path)
+    data = nifti_img.get_fdata()
+    
+    # Create binary masks for each selected organ
+    processed = torch.zeros((len(selected_organs),) + data.shape)
+    for idx, organ_id in enumerate(selected_organs):
+        print(f"Processing organ {organ_id}")
+        processed[idx] = torch.from_numpy((data == organ_id).astype(np.float32))
+        processed[idx][processed[idx] == 1] = organ_id 
+        print(processed[idx].unique())
+    return processed
+
+def load_nfiti(nifti_path, selected_organs):
+    nifti_img = nib.load(nifti_path)
+    data = nifti_img.get_fdata()
+    data[data == 1] = 42 # kidney left
+    data[data == 2] = 43 # kidney right
+    data[data == 3] = 44 # liver
+    data[data == 4] = 84 # spline
+    # Create binary masks for each selected organ
+    processed = torch.zeros((len(selected_organs),) + data.shape)
+    for idx, organ_id in enumerate(selected_organs):
+        print(f"Processing organ {organ_id}")
+        processed[idx] = torch.from_numpy((data == organ_id).astype(np.float32))
+        processed[idx][processed[idx] == 1] = organ_id 
+        print(processed[idx].unique())
+    return processed
+
+
+def prepare_evaluation_tensors(pred_path, ref_path, selected_organs=[1, 2, 3, 4]):
+    # Load predictions and reference
+    pred_data = load_and_process_nifti(pred_path, selected_organs)
+    ref_data = load_nfiti(ref_path, selected_organs)
+    print(pred_data.unique())
+    print(ref_data.unique())
+
+    # Add batch dimension if not present
+    if pred_data.dim() == 4:
+        pred_data = pred_data.unsqueeze(0)
+    if ref_data.dim() == 4:
+        ref_data = ref_data.unsqueeze(0)
+    
+    # Convert reference to expected format (B, H, W, D)
+    ref_data = torch.argmax(ref_data, dim=1)
+    
+    return pred_data, ref_data
+
 def softmax_helper_dim0(x: torch.Tensor) -> torch.Tensor:
     return torch.softmax(x, 0)
 
@@ -99,3 +152,14 @@ class AllGatherGrad(torch.autograd.Function):
         return grad_output[torch.distributed.get_rank()], None
 
 
+if __name__ == "__main__":
+    pred_path = "../data/inference_output/Abdomen_000.nii.gz"
+    ref_path = "../data/inference_ref/000_segmented.nii.gz"
+
+    selected_organs = [42, 43, 44, 84]  # organ IDs you want to evaluate
+
+    # Prepare tensors for evaluation
+    pred_tensor, ref_tensor = prepare_evaluation_tensors(pred_path, ref_path, selected_organs)
+    print(pred_tensor.shape, ref_tensor.shape)
+    print(pred_tensor.count_nonzero())
+    print(ref_tensor.count_nonzero())
