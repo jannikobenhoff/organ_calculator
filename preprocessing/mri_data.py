@@ -33,7 +33,7 @@ def sort_mri_data():
                 file_path = os.path.join(case_path, file)
                 if "MR" in file:
                     # Move main nifti image to input/$case/
-                    shutil.copy(file_path, os.path.join(input_case_path, file))
+                    shutil.copy(file_path, os.path.join(input_case_path, file).replace(".nii.gz", "_0000.nii.gz"))
                 elif "organ" in file and not "model" in file:
                     # Move corrected image to reference/$case/
                     shutil.copy(file_path, os.path.join(reference_case_path, file))
