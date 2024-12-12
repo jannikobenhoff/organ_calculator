@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 import nibabel as nib
 import torch
 import numpy as np
@@ -28,3 +29,11 @@ if __name__ =="__main__":
         print(f"Ratio for {s}: {ratio}")
 
         ratios.append(ratio)
+
+    
+    plt.scatter(["Scan 1", "Scan 2", "Scan 3", "Scan 4"], ratios)
+    plt.title("Ratio autochthon left / autochthon right")
+
+    plt.grid()
+    
+    plt.show()
