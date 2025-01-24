@@ -14,3 +14,12 @@
 module purge
 module load anaconda3
 source ../venv/bin/activate
+
+cd ../models/SIMPLE/
+
+python train.py simple --isTrain \
+    --planes_number=3 \
+    --model_root=simple_output \
+    --csv_name=planes.csv \
+    --vol_cube_dim=512 \
+    --calculate_dataset
