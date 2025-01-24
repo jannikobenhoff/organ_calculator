@@ -19,7 +19,9 @@ cd ../models/SIMPLE/
 
 python train.py simple --isTrain \
     --planes_number=3 \
+    --data_format=nifti \
     --model_root=simple_output \
     --csv_name=planes.csv \
     --vol_cube_dim=512 \
-    --calculate_dataset
+    --calculate_dataset \
+    --phase=train
