@@ -13,6 +13,7 @@ import torchvision.utils as vutils
 from dataset import  Nifti2DDataset
 from models import Discriminator, GeneratorResNet
 
+print("Starting CycleGAN training...", flush=True)
 
 IMG_SIZE = 256
 transform = T.Compose([
