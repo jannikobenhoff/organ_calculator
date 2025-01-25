@@ -8,6 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import torchvision.transforms as T
 import itertools
+import torchvision.utils as vutils
 
 from dataset import  Nifti2DDataset
 from models import Discriminator, GeneratorResNet
@@ -68,6 +69,8 @@ train_loader = DataLoader(
     batch_size=2,   # small batch for 2D slices
     shuffle=True
 )
+
+print("Number of training samples:", len(train_dataset))
 
 # Confirm we get something
 for i, (ct_slice, mri_slice) in enumerate(train_loader):
@@ -180,3 +183,15 @@ for epoch in range(n_epochs):
             print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
                   f"[D_mri: {loss_D_mri.item():.4f}, D_ct: {loss_D_ct.item():.4f}] "
                   f"[G: {loss_G.item():.4f}] ")
+            
+        if i % 200 == 0:  # e.g., save every 200 batches
+            # Suppose fake_mri is your generated MRI: shape [B, 1, H, W]
+            # Convert it to a grid and save as a PNG
+            out_path = f"epoch_{epoch}_batch_{i}_fakeMRI.png"
+            
+            # Denormalize if you used T.Normalize(mean=[0.5], std=[0.5]) etc.
+            # A quick denormalization can be done in code or you can just accept that
+            # the images are in [-1, 1].
+            
+            vutils.save_image(fake_mri, out_path, normalize=True, range=(-1, 1))
+            print(f"Saved synthesized MRI sample to {out_path}")
