@@ -15,13 +15,6 @@ module purge
 module load anaconda3
 source ../venv/bin/activate
 
-cd ../models/SIMPLE/
+cd ../cycle_gan
 
-python train.py simple --isTrain \
-    --planes_number=3 \
-    --data_format=nifti \
-    --model_root=simple_output \
-    --csv_name=planes.csv \
-    --vol_cube_dim=512 \
-    --calculate_dataset \
-    --phase=train
+python train.py
