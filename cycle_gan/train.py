@@ -45,7 +45,7 @@ criterion_identity = nn.L1Loss()
 # Hyperparameters
 batch_size = 2
 lr = 2e-4
-n_epochs = 100
+n_epochs = 101
 lambda_cycle = 10.0  # Weight for cycle loss
 lambda_identity = 5.0 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
@@ -176,19 +176,36 @@ for epoch in range(n_epochs):
         loss_D_ct.backward()
         optimizer_D_ct.step()
 
-        if i % 50 == 0:
+        if i % 10 == 0:
             print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
                   f"[D_mri: {loss_D_mri.item():.4f}, D_ct: {loss_D_ct.item():.4f}] "
                   f"[G: {loss_G.item():.4f}] ")
             
-        if i % 200 == 0:  # e.g., save every 200 batches
-            # Suppose fake_mri is your generated MRI: shape [B, 1, H, W]
-            # Convert it to a grid and save as a PNG
-            out_path = f"epoch_{epoch}_batch_{i}_fakeMRI.png"
+        # if i % 200 == 0 and :  # e.g., save every 200 batches
+        #     # Suppose fake_mri is your generated MRI: shape [B, 1, H, W]
+        #     # Convert it to a grid and save as a PNG
+        #     out_path = f"epoch_{epoch}_batch_{i}_fakeMRI.png"
             
-            # Denormalize if you used T.Normalize(mean=[0.5], std=[0.5]) etc.
-            # A quick denormalization can be done in code or you can just accept that
-            # the images are in [-1, 1].
+        #     # Denormalize if you used T.Normalize(mean=[0.5], std=[0.5]) etc.
+        #     # A quick denormalization can be done in code or you can just accept that
+        #     # the images are in [-1, 1].
             
-            vutils.save_image(fake_mri, out_path, normalize=True, range=(-1, 1))
-            print(f"Saved synthesized MRI sample to {out_path}")
+        #     vutils.save_image(fake_mri, out_path, normalize=True, range=(-1, 1))
+        #     print(f"Saved synthesized MRI sample to {out_path}")
+        
+        if i % 100 == 0 and i > 0:
+            checkpoint_path = "checkpoints/cyclegan_epoch_{:03d}.pth".format(epoch)
+            torch.save({
+                'epoch': epoch,
+                'G_ct2mri_state_dict': G_ct2mri.state_dict(),
+                'G_mri2ct_state_dict': G_mri2ct.state_dict(),
+                # (Optionally) Save discriminators if you want:
+                'D_mri_state_dict': D_mri.state_dict(),
+                'D_ct_state_dict': D_ct.state_dict(),
+                # (Optionally) Save optimizers:
+                'optimizer_G_state_dict': optimizer_G.state_dict(),
+                'optimizer_D_mri_state_dict': optimizer_D_mri.state_dict(),
+                'optimizer_D_ct_state_dict': optimizer_D_ct.state_dict(),
+            }, checkpoint_path)
+
+            print(f"Saved checkpoint to {checkpoint_path}")
