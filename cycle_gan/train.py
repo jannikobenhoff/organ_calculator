@@ -43,9 +43,9 @@ criterion_cycle = nn.L1Loss()
 criterion_identity = nn.L1Loss()
 
 # Hyperparameters
-batch_size = 2
+batch_size = 4
 lr = 2e-4
-n_epochs = 101
+n_epochs = 5
 lambda_cycle = 10.0  # Weight for cycle loss
 lambda_identity = 5.0 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
@@ -176,7 +176,7 @@ for epoch in range(n_epochs):
         loss_D_ct.backward()
         optimizer_D_ct.step()
 
-        if i % 10 == 0:
+        if i % 100 == 0:
             print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
                   f"[D_mri: {loss_D_mri.item():.4f}, D_ct: {loss_D_ct.item():.4f}] "
                   f"[G: {loss_G.item():.4f}] ")
@@ -193,19 +193,19 @@ for epoch in range(n_epochs):
         #     vutils.save_image(fake_mri, out_path, normalize=True, range=(-1, 1))
         #     print(f"Saved synthesized MRI sample to {out_path}")
         
-        if i % 100 == 0 and i > 0:
-            checkpoint_path = "checkpoints/cyclegan_epoch_{:03d}.pth".format(epoch)
-            torch.save({
-                'epoch': epoch,
-                'G_ct2mri_state_dict': G_ct2mri.state_dict(),
-                'G_mri2ct_state_dict': G_mri2ct.state_dict(),
-                # (Optionally) Save discriminators if you want:
-                'D_mri_state_dict': D_mri.state_dict(),
-                'D_ct_state_dict': D_ct.state_dict(),
-                # (Optionally) Save optimizers:
-                'optimizer_G_state_dict': optimizer_G.state_dict(),
-                'optimizer_D_mri_state_dict': optimizer_D_mri.state_dict(),
-                'optimizer_D_ct_state_dict': optimizer_D_ct.state_dict(),
-            }, checkpoint_path)
 
-            print(f"Saved checkpoint to {checkpoint_path}")
+    checkpoint_path = "checkpoints/cyclegan_epoch_{:03d}.pth".format(epoch)
+    torch.save({
+        'epoch': epoch,
+        'G_ct2mri_state_dict': G_ct2mri.state_dict(),
+        'G_mri2ct_state_dict': G_mri2ct.state_dict(),
+        # (Optionally) Save discriminators if you want:
+        'D_mri_state_dict': D_mri.state_dict(),
+        'D_ct_state_dict': D_ct.state_dict(),
+        # (Optionally) Save optimizers:
+        'optimizer_G_state_dict': optimizer_G.state_dict(),
+        'optimizer_D_mri_state_dict': optimizer_D_mri.state_dict(),
+        'optimizer_D_ct_state_dict': optimizer_D_ct.state_dict(),
+    }, checkpoint_path)
+
+    print(f"Saved checkpoint to {checkpoint_path}")
