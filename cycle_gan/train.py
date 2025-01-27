@@ -12,7 +12,7 @@ from models import Discriminator, GeneratorResNet
 print("Starting CycleGAN training...", flush=True)
 
 IMG_SIZE = 256
-transform = T.Compose([
+nifit_transform = T.Compose([
     # Convert from [0,1] float => scale to [-1, 1]
     T.Resize((IMG_SIZE, IMG_SIZE)),
     T.ToTensor(),  # shape [C,H,W], and scales to [0,1] if input was [0,255]
@@ -56,7 +56,7 @@ root_mri_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset500
 train_dataset = Nifti2DDataset(
     ct_dir=root_ct_train,
     mri_dir=root_mri_train,
-    transform=transform,
+    transform=nifit_transform,
     slice_axis=2,          # typically axial
     min_max_normalize=True
 )

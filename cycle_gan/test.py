@@ -10,6 +10,7 @@ from PIL import Image
 from models import GeneratorResNet
 import glob
 from dataset import SingleVolume2DDataset  # Make sure this dataset loads one .nii file
+from train import nifit_transform
 
 # --------------------------------------------------
 # 0. File Paths & Hyperparameters
@@ -44,7 +45,7 @@ CT_VOLUME_FILE = CT_VOLUME_FILES[0] if CT_VOLUME_FILES else None
 
 dataset = SingleVolume2DDataset(
     volume_path=CT_VOLUME_FILE,  # <-- must be a single NIfTI file
-    transform=None,              # or your transforms
+    transform=nifit_transform,              # or your transforms
     slice_axis=2,                # or whichever axis you want
     min_max_normalize=True
 )
