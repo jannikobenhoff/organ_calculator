@@ -10,7 +10,7 @@ from dataset import SingleVolume2DDataset  # Example dataset for 1 volume
 from utils import reassemble_3D    # Your function from previous snippet
 
 # 0. Paths
-CHECKPOINT_PATH = "checkpoints/cyclegan_epoch_100.pth"
+CHECKPOINT_PATH = "checkpoints/cyclegan_epoch_004.pth"
 CT_VOLUME_PATH = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/"
 OUTPUT_SLICE_DIR = "fake_slices"
 OUTPUT_VOLUME_PATH = "fake_mri_volume.nii.gz"
