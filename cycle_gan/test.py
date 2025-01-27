@@ -108,27 +108,27 @@ if __name__ == "__main__":
             # ------------------------------------
             # Save PNG for both CT & Fake MRI (every 10th slice)
             # ------------------------------------
-            if i % 10 == 0:
-                # 1) Save the fake MRI slice
-                fake_mri_out_path = os.path.join(OUTPUT_SLICE_DIR, f"fakeMRI_{i:04d}.png")
-                vutils.save_image(
-                    fake_mri,  # still the 4D tensor [1,1,H,W]
-                    fake_mri_out_path,
-                    normalize=True
-                    # range=(-1, 1) -> If you have a newer torchvision version & your data is in [-1,1]
-                )
+            # if i % 10 == 0:
+            # 1) Save the fake MRI slice
+            fake_mri_out_path = os.path.join(OUTPUT_SLICE_DIR, f"fakeMRI_{i:04d}.png")
+            vutils.save_image(
+                fake_mri,  # still the 4D tensor [1,1,H,W]
+                fake_mri_out_path,
+                normalize=True
+                # range=(-1, 1) -> If you have a newer torchvision version & your data is in [-1,1]
+            )
 
-                # 2) Save the corresponding CT slice
-                #    Note: we must do this before sending `ct_slice` to GPU or after we clone it,
-                #    but here it's still on GPU in `ct_slice_gpu`. We'll use the original CPU tensor.
-                ct_slice_out_path = os.path.join(CT_OUTPUT_SLICE_DIR, f"CT_{i:04d}.png")
-                vutils.save_image(
-                    ct_slice,  # shape [1,1,H,W], on CPU (the DataLoader output)
-                    ct_slice_out_path,
-                    normalize=True
-                )
+            # 2) Save the corresponding CT slice
+            #    Note: we must do this before sending `ct_slice` to GPU or after we clone it,
+            #    but here it's still on GPU in `ct_slice_gpu`. We'll use the original CPU tensor.
+            ct_slice_out_path = os.path.join(CT_OUTPUT_SLICE_DIR, f"CT_{i:04d}.png")
+            vutils.save_image(
+                ct_slice,  # shape [1,1,H,W], on CPU (the DataLoader output)
+                ct_slice_out_path,
+                normalize=True
+            )
 
-                print(f"[Slice {i}] Saved fake MRI: {fake_mri_out_path} | CT: {ct_slice_out_path}")
+            print(f"[Slice {i}] Saved fake MRI: {fake_mri_out_path} | CT: {ct_slice_out_path}")
 
     print(f"Finished inference on volume: {CT_VOLUME_FILE}")
     print(f"Saved sample slices (every 10th) to: {OUTPUT_SLICE_DIR}")
