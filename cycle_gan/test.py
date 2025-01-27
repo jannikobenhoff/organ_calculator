@@ -48,6 +48,7 @@ if __name__ == "__main__":
     OUTPUT_VOLUME_PATH = "fake_mri_volume.nii.gz"
 
     os.makedirs(OUTPUT_SLICE_DIR, exist_ok=True)
+    os.makedirs(CT_OUTPUT_SLICE_DIR, exist_ok=True)
 
     # --------------------------------------------------
     # 1. Load Generator
