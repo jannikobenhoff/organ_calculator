@@ -73,7 +73,7 @@ with torch.no_grad():
             fake_mri,
             slice_out_path,
             normalize=True,
-            range=(-1, 1)  # If you trained in [-1,1] range
+            # range=(-1, 1)  # If you trained in [-1,1] range
         )
         
         print(f"[Slice {i}] Saved: {slice_out_path}")
