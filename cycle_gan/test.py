@@ -11,16 +11,40 @@ from models import GeneratorResNet
 import glob
 from dataset import SingleVolume2DDataset  # A dataset that loads 1 .nii file
 from train import nifit_transform
+import SimpleITK as sitk
+
+def png_slices_to_nifti(png_folder, output_nifti):
+    """
+    Reads a sorted list of PNG files in `png_folder` and
+    assembles them into a 3D volume, saved as `output_nifti`.
+    """
+    # 1. Gather PNG slice paths
+    #    Make sure they sort in ascending Z order (e.g., slice_0000.png, slice_0001.png,...).
+    slice_files = sorted(glob.glob(os.path.join(png_folder, "*.png")))
+    if not slice_files:
+        raise ValueError(f"No PNG files found in folder: {png_folder}")
+
+    # 2. Use SimpleITK ImageSeriesReader to read as a 3D volume
+    reader = sitk.ImageSeriesReader()
+    reader.SetFileNames(slice_files)
+    
+    # 3. Execute reading => 3D volume
+    volume = reader.Execute()
+    
+    # 4. Save as NIfTI
+    sitk.WriteImage(volume, output_nifti)
+    print(f"Saved 3D volume to: {output_nifti}")
 
 if __name__ == "__main__": 
     print("Starting CycleGAN inference...", flush=True)
-    
+
     # --------------------------------------------------
     # 0. File Paths & Hyperparameters
     # --------------------------------------------------
     CHECKPOINT_PATH = "checkpoints/cyclegan_epoch_004.pth"
     CT_VOLUME_PATH = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/"
     OUTPUT_SLICE_DIR = "fake_slices"
+    CT_OUTPUT_SLICE_DIR = "ct_slices"
     OUTPUT_VOLUME_PATH = "fake_mri_volume.nii.gz"
 
     os.makedirs(OUTPUT_SLICE_DIR, exist_ok=True)
@@ -96,7 +120,7 @@ if __name__ == "__main__":
                 # 2) Save the corresponding CT slice
                 #    Note: we must do this before sending `ct_slice` to GPU or after we clone it,
                 #    but here it's still on GPU in `ct_slice_gpu`. We'll use the original CPU tensor.
-                ct_slice_out_path = os.path.join(OUTPUT_SLICE_DIR, f"CT_{i:04d}.png")
+                ct_slice_out_path = os.path.join(CT_OUTPUT_SLICE_DIR, f"CT_{i:04d}.png")
                 vutils.save_image(
                     ct_slice,  # shape [1,1,H,W], on CPU (the DataLoader output)
                     ct_slice_out_path,
@@ -112,28 +136,6 @@ if __name__ == "__main__":
     # 4. Reconstruct Full 3D Volume as NIfTI from All Generated Slices
     # --------------------------------------------------
 
-    # (A) Read original volume shape & affine from the input CT volume:
-    original_nifti = nib.load(CT_VOLUME_FILE)
-    original_affine = original_nifti.affine
-    original_shape = original_nifti.shape  # e.g. (Dx, Dy, Dz)
-
-    # In your SingleVolume2DDataset, we used slice_axis=2, so we have one slice per z-index
-    num_slices = len(all_fake_slices)
-
-    # If you used transforms that changed H and W, your reassembled volume won't match original_shape exactly.
-    # We'll reassemble using the size from 'all_fake_slices[0]'.
-    h, w = all_fake_slices[0].shape  # size after transforms
-
-    # We'll create a 3D array [h, w, num_slices], which matches slicing axis=2
-    fake_volume_3d = np.zeros((h, w, num_slices), dtype=np.float32)
-
-    for z in range(num_slices):
-        fake_volume_3d[:, :, z] = all_fake_slices[z]
-
-    # (B) Save as a new NIfTI
-    # The affine from the original volume might not perfectly match if shape changed,
-    # but let's reuse it for convenience.
-    fake_nifti = nib.Nifti1Image(fake_volume_3d, affine=original_affine)
-    nib.save(fake_nifti, OUTPUT_VOLUME_PATH)
+    png_slices_to_nifti(OUTPUT_SLICE_DIR, OUTPUT_VOLUME_PATH)
 
     print(f"Reassembled 3D volume saved to {OUTPUT_VOLUME_PATH}")
