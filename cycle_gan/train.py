@@ -1,16 +1,12 @@
 import os
-from PIL import Image
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import  DataLoader
 import torchvision.transforms as T
 import itertools
-import nibabel as nib
 from dataset import  Nifti2DDataset
 from models import Discriminator, GeneratorResNet
-import torchvision.utils as vutils
 from losses import Grad 
 
 
@@ -62,7 +58,7 @@ if __name__ == "__main__":
 
     # train_dataset.export_ct_slice_as_png(0, "ct_slice.png")
 
-    print("Starting CycleGAN training...", flush=True)
+    print("Starting CycleGAN training...")
     print("Check that all directories and paths are correct!")
 
     criterion_GAN = nn.MSELoss()  # or BCELoss
