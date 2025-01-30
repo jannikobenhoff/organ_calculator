@@ -1,3 +1,4 @@
+import os
 from PIL import Image
 import numpy as np
 import torch
@@ -63,7 +64,7 @@ if __name__ == "__main__":
 
     print("Starting CycleGAN training...", flush=True)
     print("Check that all directories and paths are correct!")
-    
+
     criterion_GAN = nn.MSELoss()  # or BCELoss
     criterion_cycle = nn.L1Loss()
     criterion_identity = nn.L1Loss()
@@ -80,6 +81,9 @@ if __name__ == "__main__":
     # Dataloaders
     root_ct_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
     root_mri_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/imagesTr/"
+    checkpoint_directory = "checkpoints"
+
+    os.makedirs(checkpoint_directory, exist_ok=True)
 
     train_dataset = Nifti2DDataset(
         ct_dir=root_ct_train,
@@ -214,7 +218,7 @@ if __name__ == "__main__":
             #     print(f"Saved synthesized MRI sample to {out_path}")
             
 
-        checkpoint_path = f"checkpoints/cyclegan_epoch_{epoch:03d}.pth"
+        checkpoint_path = f"{checkpoint_directory}/cyclegan_epoch_{epoch:03d}.pth"
         torch.save({
             'epoch': epoch,
             'G_ct2mri_state_dict': G_ct2mri.state_dict(),
