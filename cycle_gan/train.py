@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # Hyperparameters
     batch_size = 2
     lr = 2e-4
-    n_epochs = 5 # -> 10
+    n_epochs = 10
     lambda_cycle = 10.0  # Weight for cycle loss
     lambda_identity = 5.0 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
