@@ -77,8 +77,8 @@ if __name__ == "__main__":
     lambda_identity = 5.0 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
     # Dataloaders
-    root_ct_train = "../data/inference_input"#"/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
-    root_mri_train = "../data/inference_input"#/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/imagesTr/"
+    root_ct_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
+    root_mri_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/imagesTr/"
 
     train_dataset = Nifti2DDataset(
         ct_dir=root_ct_train,
