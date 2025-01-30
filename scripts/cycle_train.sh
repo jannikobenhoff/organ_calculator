@@ -17,4 +17,4 @@ source ../venv/bin/activate
 
 cd ../cycle_gan
 
-python train.py
+python -u train.py

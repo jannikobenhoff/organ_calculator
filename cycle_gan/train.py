@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # train_dataset.export_ct_slice_as_png(0, "ct_slice.png")
 
-    print("Starting CycleGAN training...")
+    print("Starting CycleGAN training...", flush=True)
     print("Check that all directories and paths are correct!")
 
     criterion_GAN = nn.MSELoss()  # or BCELoss
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         shuffle=True
     )
 
-    print("Number of training samples:", len(train_dataset))
+    print("Number of training samples:", len(train_dataset), flush=True)
 
     # Confirm we get something
     for i, (ct_slice, mri_slice) in enumerate(train_loader):
@@ -199,7 +199,7 @@ if __name__ == "__main__":
             if i % 100 == 0:
                 print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
                     f"[D_mri: {loss_D_mri.item():.4f}, D_ct: {loss_D_ct.item():.4f}] "
-                    f"[G: {loss_G.item():.4f}] ")
+                    f"[G: {loss_G.item():.4f}] ", flush=True)
                 
             # if i % 200 == 0 and :  # e.g., save every 200 batches
             #     # Suppose fake_mri is your generated MRI: shape [B, 1, H, W]
