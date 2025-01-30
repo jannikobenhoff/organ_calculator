@@ -62,7 +62,8 @@ if __name__ == "__main__":
     # train_dataset.export_ct_slice_as_png(0, "ct_slice.png")
 
     print("Starting CycleGAN training...", flush=True)
-
+    print("Check that all directories and paths are correct!")
+    
     criterion_GAN = nn.MSELoss()  # or BCELoss
     criterion_cycle = nn.L1Loss()
     criterion_identity = nn.L1Loss()
