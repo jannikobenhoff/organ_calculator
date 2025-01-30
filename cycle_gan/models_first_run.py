@@ -60,15 +60,13 @@ class GeneratorResNet(nn.Module):
         model += [
             nn.ReflectionPad2d(3),
             nn.Conv2d(curr_dim, output_nc, 7),
-            nn.Sigmoid()  # Ensure output is positive for scaling
+            nn.Tanh()
         ]
         
         self.model = nn.Sequential(*model)
 
     def forward(self, x):
-        scale_field = self.model(x)  # Output scalar field in [0,1]
-        scale_field = 1.0 + 0.5 * (scale_field - 0.5)  # Map [0,1] → [0.5,1.5]
-        return x * scale_field  # Multiply input image by scalar field
+        return self.model(x)
 
 
 class Discriminator(nn.Module):

@@ -1,12 +1,16 @@
+from PIL import Image
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import  DataLoader
 import torchvision.transforms as T
 import itertools
-
+import nibabel as nib
 from dataset import  Nifti2DDataset
 from models import Discriminator, GeneratorResNet
+import torchvision.utils as vutils
+from losses import Grad 
 
 
 IMG_SIZE = 256
@@ -14,8 +18,28 @@ nifit_transform = T.Compose([
     # Convert from [0,1] float => scale to [-1, 1]
     T.Resize((IMG_SIZE, IMG_SIZE)),
     T.ToTensor(),  # shape [C,H,W], and scales to [0,1] if input was [0,255]
-    T.Normalize(mean=[0.5], std=[0.5])  # single-channel => [-1, 1]
+    T.Normalize(mean=[150.0], std=[350.0])  # single-channel => [-1, 1] from [-200, 500] 
 ])
+# maybe clamp values: torch.clamp(x, -200, 500) so we dont loose values
+
+# def weights_init_normal(m):
+#     classname = m.__class__.__name__
+#     if classname.find('Conv') != -1:
+#         if hasattr(m, 'weight') and m.weight is not None:
+#             nn.init.normal_(m.weight.data, 0.0, 0.02)
+#         if hasattr(m, 'bias') and m.bias is not None:
+#             nn.init.constant_(m.bias.data, 0.0)
+#     elif classname.find('Linear') != -1:
+#         if hasattr(m, 'weight') and m.weight is not None:
+#             nn.init.normal_(m.weight.data, 0.0, 0.02)
+#         if hasattr(m, 'bias') and m.bias is not None:
+#             nn.init.constant_(m.bias.data, 0.0)
+#     elif classname.find('BatchNorm') != -1 or classname.find('InstanceNorm') != -1:
+#         # For BatchNorm or InstanceNorm with affine=True, we can initialize gamma/beta
+#         if hasattr(m, 'weight') and m.weight is not None:
+#             nn.init.normal_(m.weight.data, 1.0, 0.02)
+#         if hasattr(m, 'bias') and m.bias is not None:
+#             nn.init.constant_(m.bias.data, 0.0)
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -24,24 +48,26 @@ def weights_init_normal(m):
             nn.init.normal_(m.weight.data, 0.0, 0.02)
         if hasattr(m, 'bias') and m.bias is not None:
             nn.init.constant_(m.bias.data, 0.0)
-    elif classname.find('Linear') != -1:
-        if hasattr(m, 'weight') and m.weight is not None:
-            nn.init.normal_(m.weight.data, 0.0, 0.02)
-        if hasattr(m, 'bias') and m.bias is not None:
-            nn.init.constant_(m.bias.data, 0.0)
-    elif classname.find('BatchNorm') != -1 or classname.find('InstanceNorm') != -1:
-        # For BatchNorm or InstanceNorm with affine=True, we can initialize gamma/beta
-        if hasattr(m, 'weight') and m.weight is not None:
-            nn.init.normal_(m.weight.data, 1.0, 0.02)
-        if hasattr(m, 'bias') and m.bias is not None:
-            nn.init.constant_(m.bias.data, 0.0)
 
 if __name__ == "__main__":
+    # Check normalized slice
+    # train_dataset = Nifti2DDataset(
+    #     ct_dir="../data/inference_input",
+    #     mri_dir="../data/inference_input",
+    #     transform=nifit_transform,
+    #     slice_axis=2,
+    #     min_max_normalize=True
+    # )
+
+    # train_dataset.export_ct_slice_as_png(0, "ct_slice.png")
+
     print("Starting CycleGAN training...", flush=True)
 
     criterion_GAN = nn.MSELoss()  # or BCELoss
     criterion_cycle = nn.L1Loss()
     criterion_identity = nn.L1Loss()
+    criterion_grad = Grad(penalty='l1')
+    lambda_grad = 0.1
 
     # Hyperparameters
     batch_size = 2
@@ -51,15 +77,15 @@ if __name__ == "__main__":
     lambda_identity = 5.0 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
     # Dataloaders
-    root_ct_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
-    root_mri_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/imagesTr/"
+    root_ct_train = "../data/inference_input"#"/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
+    root_mri_train = "../data/inference_input"#/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/imagesTr/"
 
     train_dataset = Nifti2DDataset(
         ct_dir=root_ct_train,
         mri_dir=root_mri_train,
         transform=nifit_transform,
         slice_axis=2,          # typically axial
-        min_max_normalize=True
+        normalize=True
     )
 
     train_loader = DataLoader(
@@ -98,10 +124,6 @@ if __name__ == "__main__":
     optimizer_D_mri = optim.Adam(D_mri.parameters(), lr=lr, betas=(0.5, 0.999))
     optimizer_D_ct = optim.Adam(D_ct.parameters(), lr=lr, betas=(0.5, 0.999))
 
-    # Labels for real and fake
-    real_label = 1.0
-    fake_label = 0.0
-
     for epoch in range(n_epochs):
         for i, (real_ct, real_mri) in enumerate(train_loader):
             real_ct = real_ct.to(device)
@@ -112,68 +134,64 @@ if __name__ == "__main__":
             # ------------------
             optimizer_G.zero_grad()
             
-            # Identity loss (optional): G_ct2mri(mri) should be mri if already MRI
-            # Similarly for G_mri2ct(ct) -> ct
-            identity_mri = G_ct2mri(real_mri)
+            # Identity loss (G_ct2mri should return 1 for MRI and vice versa)
+            identity_mri_field = G_ct2mri(real_mri)  
+            identity_mri = real_mri * identity_mri_field  
             loss_id_mri = criterion_identity(identity_mri, real_mri) * lambda_identity
             
-            identity_ct = G_mri2ct(real_ct)
+            identity_ct_field = G_mri2ct(real_ct)
+            identity_ct = real_ct * identity_ct_field  
             loss_id_ct = criterion_identity(identity_ct, real_ct) * lambda_identity
 
+            # Forward pass: Generate scalar fields and transformed images
+            scale_field_ct2mri = G_ct2mri(real_ct)  # CT → MRI field
+            fake_mri = real_ct * scale_field_ct2mri  # CT × field → synthetic MRI
+            
+            scale_field_mri2ct = G_mri2ct(real_mri)  # MRI → CT field
+            fake_ct = real_mri * scale_field_mri2ct  # MRI × field → synthetic CT
+
             # GAN loss
-            fake_mri = G_ct2mri(real_ct)
             pred_fake_mri = D_mri(fake_mri)
             loss_GAN_ct2mri = criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
 
-            fake_ct = G_mri2ct(real_mri)
             pred_fake_ct = D_ct(fake_ct)
             loss_GAN_mri2ct = criterion_GAN(pred_fake_ct, torch.ones_like(pred_fake_ct))
-            
-            # Cycle loss
-            rec_ct = G_mri2ct(fake_mri)
+
+            # Cycle consistency loss
+            rec_ct = G_mri2ct(fake_mri) * fake_mri  # Recovered CT = MRI2CT Field × fake MRI
             loss_cycle_ct = criterion_cycle(rec_ct, real_ct) * lambda_cycle
             
-            rec_mri = G_ct2mri(fake_ct)
+            rec_mri = G_ct2mri(fake_ct) * fake_ct  # Recovered MRI = CT2MRI Field × fake CT
             loss_cycle_mri = criterion_cycle(rec_mri, real_mri) * lambda_cycle
-            
-            # Total generator loss
-            loss_G = loss_GAN_ct2mri + loss_GAN_mri2ct + loss_cycle_ct + loss_cycle_mri + loss_id_mri + loss_id_ct
+
+            # Compute Grad2D Loss (encourages smooth transformation fields)
+            loss_grad_ct2mri = criterion_grad.loss(None, scale_field_ct2mri) * lambda_grad
+            loss_grad_mri2ct = criterion_grad.loss(None, scale_field_mri2ct) * lambda_grad
+
+            # Total generator loss (Including Grad regularization)
+            loss_G = (loss_GAN_ct2mri + loss_GAN_mri2ct + 
+                    loss_cycle_ct + loss_cycle_mri + 
+                    loss_id_mri + loss_id_ct + 
+                    loss_grad_ct2mri + loss_grad_mri2ct)
             loss_G.backward()
             optimizer_G.step()
             
             # -----------------------
-            #  Train Discriminator MRI
+            #  Train Discriminator
             # -----------------------
             optimizer_D_mri.zero_grad()
-
-            # Real
-            pred_real = D_mri(real_mri)
-            loss_D_real = criterion_GAN(pred_real, torch.ones_like(pred_real))
-
-            # Fake
-            fake_mri_detach = fake_mri.detach()
-            pred_fake = D_mri(fake_mri_detach)
-            loss_D_fake = criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
-            
-            loss_D_mri = (loss_D_real + loss_D_fake) * 0.5
+            pred_real_mri = D_mri(real_mri)
+            loss_D_real_mri = criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+            loss_D_fake_mri = criterion_GAN(D_mri(fake_mri.detach()), torch.zeros_like(pred_real_mri))
+            loss_D_mri = (loss_D_real_mri + loss_D_fake_mri) * 0.5
             loss_D_mri.backward()
             optimizer_D_mri.step()
-            
-            # -----------------------
-            #  Train Discriminator CT
-            # -----------------------
-            optimizer_D_ct.zero_grad()
 
-            # Real
-            pred_real = D_ct(real_ct)
-            loss_D_real = criterion_GAN(pred_real, torch.ones_like(pred_real))
-            
-            # Fake
-            fake_ct_detach = fake_ct.detach()
-            pred_fake = D_ct(fake_ct_detach)
-            loss_D_fake = criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
-            
-            loss_D_ct = (loss_D_real + loss_D_fake) * 0.5
+            optimizer_D_ct.zero_grad()
+            pred_real_ct = D_ct(real_ct)
+            loss_D_real_ct = criterion_GAN(pred_real_ct, torch.ones_like(pred_real_ct))
+            loss_D_fake_ct = criterion_GAN(D_ct(fake_ct.detach()), torch.zeros_like(pred_real_ct))
+            loss_D_ct = (loss_D_real_ct + loss_D_fake_ct) * 0.5
             loss_D_ct.backward()
             optimizer_D_ct.step()
 
@@ -195,15 +213,13 @@ if __name__ == "__main__":
             #     print(f"Saved synthesized MRI sample to {out_path}")
             
 
-        checkpoint_path = "checkpoints/cyclegan_epoch_{:03d}.pth".format(epoch)
+        checkpoint_path = f"checkpoints/cyclegan_epoch_{epoch:03d}.pth"
         torch.save({
             'epoch': epoch,
             'G_ct2mri_state_dict': G_ct2mri.state_dict(),
             'G_mri2ct_state_dict': G_mri2ct.state_dict(),
-            # (Optionally) Save discriminators if you want:
             'D_mri_state_dict': D_mri.state_dict(),
             'D_ct_state_dict': D_ct.state_dict(),
-            # (Optionally) Save optimizers:
             'optimizer_G_state_dict': optimizer_G.state_dict(),
             'optimizer_D_mri_state_dict': optimizer_D_mri.state_dict(),
             'optimizer_D_ct_state_dict': optimizer_D_ct.state_dict(),
