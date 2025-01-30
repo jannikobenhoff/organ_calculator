@@ -44,9 +44,9 @@ if __name__ == "__main__":
     criterion_identity = nn.L1Loss()
 
     # Hyperparameters
-    batch_size = 4
+    batch_size = 2
     lr = 2e-4
-    n_epochs = 5
+    n_epochs = 5 # -> 10
     lambda_cycle = 10.0  # Weight for cycle loss
     lambda_identity = 5.0 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=2,   # small batch for 2D slices
+        batch_size=batch_size,
         shuffle=True
     )
 
