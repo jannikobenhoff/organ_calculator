@@ -2,12 +2,9 @@ import torch
 import torchvision.utils as vutils
 import os
 from torch.utils.data import DataLoader
-import nibabel as nib
-import numpy as np
-from PIL import Image
 from models import GeneratorResNet
 import glob
-from dataset import Nifti2DDataset  
+from dataset import SingleVolume2DDataset  
 from train import nifit_transform
 import SimpleITK as sitk
 
@@ -68,14 +65,16 @@ if __name__ == "__main__":
     CT_VOLUME_FILE = CT_VOLUME_FILES[0]  # Take the first file
 
     # Load dataset: extract slices from a NIfTI file
-    dataset = Nifti2DDataset(
+    # 2. Load dataset
+    dataset = SingleVolume2DDataset(
         volume_path=CT_VOLUME_FILE,
         transform=nifit_transform,
         slice_axis=2,
-        min_max_normalize=True
+        apply_contrast_norm=True
     )
 
     data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
+
 
     # --------------------------------------------------
     # 3. Inference: Generate All Slices

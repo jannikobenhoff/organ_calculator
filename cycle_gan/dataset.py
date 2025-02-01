@@ -122,71 +122,69 @@ class Nifti2DDataset(Dataset):
         # Save using torchvision
         vutils.save_image(image_for_png, output_path)
         print(f"Saved CT slice {slice_index} to {output_path}")
+class SingleVolume2DDataset(Dataset):
+    """
+    Loads a single 3D NIfTI volume, extracts 2D slices along `slice_axis`,
+    and returns them as individual 2D images for inference.
+    """
+    def __init__(self, volume_path, transform=None, slice_axis=2, apply_contrast_norm=True):
+        """
+        :param volume_path: Path to the NIfTI file.
+        :param transform: Optional torchvision transforms to apply to each 2D slice.
+        :param slice_axis: Axis along which to extract slices (0=X, 1=Y, 2=Z).
+        :param apply_contrast_norm: If True, applies contrast normalization [-200, 500] → [-1, 1].
+        """
+        super().__init__()
+        self.transform = transform
+        self.slice_axis = slice_axis
+        self.apply_contrast_norm = apply_contrast_norm
 
-# class SingleVolume2DDataset(Dataset):
-#     """
-#     Loads a single 3D NIfTI volume, extracts 2D slices along `slice_axis`,
-#     and returns them as individual items (one per slice).
-#     """
-#     def __init__(
-#         self,
-#         volume_path,         # Path to a single .nii or .nii.gz file
-#         transform=None,
-#         slice_axis=2,        # 0-> x-plane slices, 1-> y-plane, 2-> z-plane
-#         min_max_normalize=True
-#     ):
-#         super().__init__()
-#         self.transform = transform
-#         self.slice_axis = slice_axis
-#         self.min_max_normalize = min_max_normalize
-        
-#         # Load the 3D volume
-#         volume_nifti = nib.load(volume_path)
-#         volume = volume_nifti.get_fdata(dtype=np.float32)  # shape [Dx, Dy, Dz], etc.
-        
-#         # Extract slices
-#         num_slices = volume.shape[self.slice_axis]
-#         self.slices_data = []
-#         for s in range(num_slices):
-#             slice_2d = self._get_slice(volume, s)
-#             self.slices_data.append(slice_2d)
-    
-#     def _get_slice(self, volume, slice_idx):
-#         """
-#         Extract a 2D slice from a 3D volume given `slice_axis` and slice index.
-#         """
-#         if self.slice_axis == 0:
-#             return volume[slice_idx, :, :]
-#         elif self.slice_axis == 1:
-#             return volume[:, slice_idx, :]
-#         else:  # default: 2
-#             return volume[:, :, slice_idx]
-    
-#     def __len__(self):
-#         return len(self.slices_data)
-    
-#     def __getitem__(self, idx):
-#         slice_2d = self.slices_data[idx]
-        
-#         # (Optionally) min-max normalize this slice
-#         if self.min_max_normalize:
-#             slice_2d = self._min_max_norm(slice_2d)
-        
-#         # Convert to PIL Image in floating mode (32-bit)
-#         # so that torchvision transforms can be applied
-#         slice_img = Image.fromarray(slice_2d, mode='F')
-        
-#         # Apply any transform (e.g. Resize, ToTensor, Normalize, etc.)
-#         if self.transform is not None:
-#             slice_img = self.transform(slice_img)
-        
-#         # Return it as a tuple (for consistency with usage: `for ct_slice, in loader`)
-#         return (slice_img, )
-    
-#     def _min_max_norm(self, arr):
-#         min_val = np.min(arr)
-#         max_val = np.max(arr)
-#         if max_val - min_val < 1e-5:
-#             # Avoid division by zero if slice is uniform
-#             return np.zeros_like(arr, dtype=np.float32)
-#         return (arr - min_val) / (max_val - min_val)  # scale to [0, 1]
+        # Load 3D volume
+        volume_nifti = nib.load(volume_path)
+        self.volume = volume_nifti.get_fdata(dtype=np.float32)  # Shape: (X, Y, Z) or (H, W, D)
+
+        # Extract slices
+        self.slices = [self._get_slice(i) for i in range(self.volume.shape[self.slice_axis])]
+
+    def _get_slice(self, slice_idx):
+        """
+        Extracts a single 2D slice from the 3D volume along the specified axis.
+        """
+        if self.slice_axis == 0:
+            slice_2d = self.volume[slice_idx, :, :]
+        elif self.slice_axis == 1:
+            slice_2d = self.volume[:, slice_idx, :]
+        else:
+            slice_2d = self.volume[:, :, slice_idx]  # Default: axial (Z-axis)
+
+        # Apply contrast normalization if needed
+        if self.apply_contrast_norm:
+            slice_2d = self._contrast_normalization(slice_2d)
+
+        return slice_2d
+
+    def _contrast_normalization(self, arr):
+        """
+        Maps intensities from [-200, 500] to [-1,1] and clips values outside the range.
+        """
+        arr = np.clip(arr, -200, 500)  # Ensure values are within range
+        arr = (arr - 150.0) / 350.0  # Normalize to [-1, 1]
+        return arr.astype(np.float32)
+
+    def __len__(self):
+        return len(self.slices)
+
+    def __getitem__(self, idx):
+        """
+        Returns a single 2D slice from the volume, transformed for PyTorch inference.
+        """
+        slice_2d = self.slices[idx]
+
+        # Convert to PIL Image (required for torchvision transforms)
+        slice_img = Image.fromarray(slice_2d, mode='F')  
+
+        # Apply transforms
+        if self.transform:
+            slice_img = self.transform(slice_img)
+
+        return (slice_img,)  # Tuple for compatibility with DataLoader
