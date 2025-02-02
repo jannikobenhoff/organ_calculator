@@ -65,13 +65,13 @@ if __name__ == "__main__":
     criterion_cycle = nn.L1Loss()
     criterion_identity = nn.L1Loss()
     criterion_grad = Grad(penalty='l1')
-    lambda_grad = 0.01
+    lambda_grad = 0.05  # 0.01
 
     # Hyperparameters
     batch_size = 2
     lr = 2e-4
     n_epochs = 10
-    lambda_cycle = 10.0  # Weight for cycle loss
+    lambda_cycle = 5  # Weight for cycle loss
     lambda_identity = 5.0 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
     # Dataloaders
@@ -122,7 +122,7 @@ if __name__ == "__main__":
         itertools.chain(G_ct2mri.parameters(), G_mri2ct.parameters()),
         lr=lr, betas=(0.5, 0.999)
     )
-    lr_d = 1e-4  # Discriminator learning rate
+    lr_d = 2e-4  # Discriminator learning rate
     optimizer_D_mri = optim.Adam(D_mri.parameters(), lr=lr_d, betas=(0.5, 0.999))
     optimizer_D_ct = optim.Adam(D_ct.parameters(), lr=lr_d, betas=(0.5, 0.999))
 
@@ -146,11 +146,15 @@ if __name__ == "__main__":
             loss_id_ct = criterion_identity(identity_ct, real_ct) * lambda_identity
 
             # Forward pass: Generate scalar fields and transformed images
+            # Add noise to the generated images
+            noise_level = 0.05
+            noise = torch.randn_like(real_ct) * noise_level
+           
             scale_field_ct2mri = G_ct2mri(real_ct)  # CT → MRI field
-            fake_mri = real_ct * scale_field_ct2mri  # CT × field → synthetic MRI
-            
             scale_field_mri2ct = G_mri2ct(real_mri)  # MRI → CT field
-            fake_ct = real_mri * scale_field_mri2ct  # MRI × field → synthetic CT
+
+            fake_mri = (real_ct * scale_field_ct2mri) + noise # CT × field → synthetic MRI
+            fake_ct = (real_mri * scale_field_mri2ct) + noise # MRI × field → synthetic CT
 
             # GAN loss
             pred_fake_mri = D_mri(fake_mri)
@@ -199,12 +203,15 @@ if __name__ == "__main__":
 
             if i % 100 == 0:
                 print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
-                    f"[D_mri: {loss_D_mri.item():.4f}, D_ct: {loss_D_ct.item():.4f}] "
-                    f"[G: {loss_G.item():.4f}, Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]", flush=True)
-                
-                # Log scalar field mean values
-                print(f"Mean Scalar Field CT->MRI: {scale_field_ct2mri.mean().item():.4f}, MRI->CT: {scale_field_mri2ct.mean().item():.4f}", flush=True)
-                
+                    f"[D_mri: {loss_D_mri.item():.6f}, D_ct: {loss_D_ct.item():.6f}] "
+                    f"[G: {loss_G.item():.4f}, Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]")
+
+                print(f"Mean Scalar Field CT->MRI: {scale_field_ct2mri.mean().item():.4f}, MRI->CT: {scale_field_mri2ct.mean().item():.4f}")
+
+                # Log min/max values
+                print(f"Min Scalar Field CT->MRI: {scale_field_ct2mri.min().item():.4f}, Max: {scale_field_ct2mri.max().item():.4f}")
+                print(f"Min Scalar Field MRI->CT: {scale_field_mri2ct.min().item():.4f}, Max: {scale_field_mri2ct.max().item():.4f}")
+   
             # if i % 200 == 0 and :  # e.g., save every 200 batches
             #     # Suppose fake_mri is your generated MRI: shape [B, 1, H, W]
             #     # Convert it to a grid and save as a PNG
