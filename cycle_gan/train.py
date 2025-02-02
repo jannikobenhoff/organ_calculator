@@ -61,11 +61,11 @@ if __name__ == "__main__":
     print("Starting CycleGAN training...", flush=True)
     print("Check that all directories and paths are correct!")
 
-    criterion_GAN = nn.MSELoss()  # or BCELoss
+    criterion_GAN = nn.BCEWithLogitsLoss()  # or MSELoss
     criterion_cycle = nn.L1Loss()
     criterion_identity = nn.L1Loss()
     criterion_grad = Grad(penalty='l1')
-    lambda_grad = 0.1
+    lambda_grad = 0.01
 
     # Hyperparameters
     batch_size = 2
@@ -122,8 +122,9 @@ if __name__ == "__main__":
         itertools.chain(G_ct2mri.parameters(), G_mri2ct.parameters()),
         lr=lr, betas=(0.5, 0.999)
     )
-    optimizer_D_mri = optim.Adam(D_mri.parameters(), lr=lr, betas=(0.5, 0.999))
-    optimizer_D_ct = optim.Adam(D_ct.parameters(), lr=lr, betas=(0.5, 0.999))
+    lr_d = 1e-4  # Discriminator learning rate
+    optimizer_D_mri = optim.Adam(D_mri.parameters(), lr=lr_d, betas=(0.5, 0.999))
+    optimizer_D_ct = optim.Adam(D_ct.parameters(), lr=lr_d, betas=(0.5, 0.999))
 
     for epoch in range(n_epochs):
         for i, (real_ct, real_mri) in enumerate(train_loader):
@@ -199,7 +200,10 @@ if __name__ == "__main__":
             if i % 100 == 0:
                 print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
                     f"[D_mri: {loss_D_mri.item():.4f}, D_ct: {loss_D_ct.item():.4f}] "
-                    f"[G: {loss_G.item():.4f}] ", flush=True)
+                    f"[G: {loss_G.item():.4f}, Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]", flush=True)
+                
+                # Log scalar field mean values
+                print(f"Mean Scalar Field CT->MRI: {scale_field_ct2mri.mean().item():.4f}, MRI->CT: {scale_field_mri2ct.mean().item():.4f}", flush=True)
                 
             # if i % 200 == 0 and :  # e.g., save every 200 batches
             #     # Suppose fake_mri is your generated MRI: shape [B, 1, H, W]
