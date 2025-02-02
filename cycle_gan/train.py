@@ -15,28 +15,11 @@ nifit_transform = T.Compose([
     # Convert from [0,1] float => scale to [-1, 1]
     T.Resize((IMG_SIZE, IMG_SIZE)),
     T.ToTensor(),  # shape [C,H,W], and scales to [0,1] if input was [0,255]
-    T.Normalize(mean=[150.0], std=[350.0])  # single-channel => [-1, 1] from [-200, 500] 
+    T.Lambda(lambda x: torch.clamp(x, -200, 500)),  # Ensure no outliers
+    T.Normalize(mean=[0.5], std=[0.5]),  # Normalize to [-1, 1]
 ])
 # maybe clamp values: torch.clamp(x, -200, 500) so we dont loose values
 
-# def weights_init_normal(m):
-#     classname = m.__class__.__name__
-#     if classname.find('Conv') != -1:
-#         if hasattr(m, 'weight') and m.weight is not None:
-#             nn.init.normal_(m.weight.data, 0.0, 0.02)
-#         if hasattr(m, 'bias') and m.bias is not None:
-#             nn.init.constant_(m.bias.data, 0.0)
-#     elif classname.find('Linear') != -1:
-#         if hasattr(m, 'weight') and m.weight is not None:
-#             nn.init.normal_(m.weight.data, 0.0, 0.02)
-#         if hasattr(m, 'bias') and m.bias is not None:
-#             nn.init.constant_(m.bias.data, 0.0)
-#     elif classname.find('BatchNorm') != -1 or classname.find('InstanceNorm') != -1:
-#         # For BatchNorm or InstanceNorm with affine=True, we can initialize gamma/beta
-#         if hasattr(m, 'weight') and m.weight is not None:
-#             nn.init.normal_(m.weight.data, 1.0, 0.02)
-#         if hasattr(m, 'bias') and m.bias is not None:
-#             nn.init.constant_(m.bias.data, 0.0)
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -61,7 +44,7 @@ if __name__ == "__main__":
     print("Starting CycleGAN training...", flush=True)
     print("Check that all directories and paths are correct!")
 
-    criterion_GAN = nn.BCEWithLogitsLoss()  # or MSELoss
+    criterion_GAN = nn.MSELoss()
     criterion_cycle = nn.L1Loss()
     criterion_identity = nn.L1Loss()
     criterion_grad = Grad(penalty='l1')
@@ -72,7 +55,7 @@ if __name__ == "__main__":
     lr = 2e-4
     n_epochs = 10
     lambda_cycle = 5  # Weight for cycle loss
-    lambda_identity = 5.0 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
+    lambda_identity = 2.5 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
     # Dataloaders
     root_ct_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
@@ -122,7 +105,7 @@ if __name__ == "__main__":
         itertools.chain(G_ct2mri.parameters(), G_mri2ct.parameters()),
         lr=lr, betas=(0.5, 0.999)
     )
-    lr_d = 2e-4  # Discriminator learning rate
+    lr_d = 5e-4  # Discriminator learning rate
     optimizer_D_mri = optim.Adam(D_mri.parameters(), lr=lr_d, betas=(0.5, 0.999))
     optimizer_D_ct = optim.Adam(D_ct.parameters(), lr=lr_d, betas=(0.5, 0.999))
 

@@ -68,7 +68,8 @@ class GeneratorResNet(nn.Module):
     def forward(self, x):
         scale_field = self.model(x)  # Output scalar field in [0,1]
         scale_field = 1.0 + 0.5 * (scale_field - 0.5)  # Map [0,1] → [0.5,1.5]
-        return x * scale_field  # Multiply input image by scalar field
+        return scale_field  # Return scalar field only
+
 
 
 class Discriminator(nn.Module):
