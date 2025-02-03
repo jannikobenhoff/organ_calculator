@@ -52,9 +52,9 @@ if __name__ == "__main__":
 
     # Hyperparameters
     batch_size = 2
-    lr = 2e-4
+    lr = 5e-5
     n_epochs = 10
-    lambda_cycle = 5  # Weight for cycle loss
+    lambda_cycle = 7.5  # Weight for cycle loss
     lambda_identity = 2.5 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
 
     # Dataloaders
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         itertools.chain(G_ct2mri.parameters(), G_mri2ct.parameters()),
         lr=lr, betas=(0.5, 0.999)
     )
-    lr_d = 5e-4  # Discriminator learning rate
+    lr_d = 2e-3  # Discriminator learning rate
     optimizer_D_mri = optim.Adam(D_mri.parameters(), lr=lr_d, betas=(0.5, 0.999))
     optimizer_D_ct = optim.Adam(D_ct.parameters(), lr=lr_d, betas=(0.5, 0.999))
 
