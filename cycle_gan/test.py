@@ -5,7 +5,7 @@ import os
 from torch.utils.data import DataLoader
 from models import UNet
 import glob
-from dataset import SingleVolume2DDataset, Nifti2DDataset
+from dataset import Nifti2DDataset
 from train import nifit_transform
 import SimpleITK as sitk
 
