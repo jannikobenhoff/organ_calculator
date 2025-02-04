@@ -5,7 +5,7 @@ import os
 from torch.utils.data import DataLoader
 from models import UNet
 import glob
-from dataset import Nifti2DDataset
+from dataset import Nifti2DDataset, SingleVolume2DDataset
 from train import nifit_transform
 import SimpleITK as sitk
 
@@ -72,9 +72,8 @@ if __name__ == "__main__":
 
     # Load dataset: extract slices from a NIfTI file
     # 2. Load dataset
-    dataset = Nifti2DDataset(
-        ct_dir=CT_VOLUME_FILE,
-        mri_dir=None,
+    dataset = SingleVolume2DDataset(
+        volume_path=CT_VOLUME_FILE,
         transform=nifit_transform,
         slice_axis=2
     )

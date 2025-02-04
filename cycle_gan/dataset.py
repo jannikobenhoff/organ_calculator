@@ -33,18 +33,16 @@ class Nifti2DDataset(Dataset):
         super().__init__()
         
         self.ct_vol_paths = sorted(glob.glob(os.path.join(ct_dir, '*.nii*')))
-        if mri_dir:
-            self.mri_vol_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
+
+        self.mri_vol_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
         
         self.transform = transform
         self.slice_axis = slice_axis
         
         # Pre-load volumes and create a list of slices for CT
         self.ct_slices = self._load_slices(self.ct_vol_paths)
-        if mri_dir:
-            self.mri_slices = self._load_slices(self.mri_vol_paths)
-        else:
-            self.mri_slices = []
+
+        self.mri_slices = self._load_slices(self.mri_vol_paths)
         # Ensure datasets match in length for unpaired training
         self.dataset_len = max(len(self.ct_slices), len(self.mri_slices))
     
@@ -118,7 +116,7 @@ class SingleVolume2DDataset(Dataset):
     Loads a single 3D NIfTI volume, extracts 2D slices along `slice_axis`,
     and returns them as individual 2D images for inference.
     """
-    def __init__(self, volume_path, transform=None, slice_axis=2, apply_contrast_norm=True):
+    def __init__(self, volume_path, transform=None, slice_axis=2):
         """
         :param volume_path: Path to the NIfTI file.
         :param transform: Optional torchvision transforms to apply to each 2D slice.
