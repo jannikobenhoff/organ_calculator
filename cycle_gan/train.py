@@ -11,6 +11,8 @@ from losses import Grad
 
 
 IMG_SIZE = 256
+
+# TODO: Check this
 nifit_transform = T.Compose([
     T.Resize((IMG_SIZE, IMG_SIZE)),
     T.ToTensor(),
@@ -120,9 +122,11 @@ if __name__ == "__main__":
             fake_ct = (real_mri * scale_field_mri2ct)  # MRI × field → synthetic CT
 
             # GAN loss
+            # TODO: Check this
             pred_fake_mri = D_mri((fake_mri + 1) / 2)  # Normalize to [0,1]
             loss_GAN_ct2mri = criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
-
+            
+            # TODO: Check this
             pred_fake_ct = D_ct((fake_ct + 1) / 2)
             loss_GAN_mri2ct = criterion_GAN(pred_fake_ct, torch.ones_like(pred_fake_ct))
 
@@ -149,16 +153,24 @@ if __name__ == "__main__":
             #  Train Discriminator
             # -----------------------
             optimizer_D_mri.zero_grad()
+
+            # TODO: Check this
             pred_real_mri = D_mri((real_mri + 1) / 2)  # Normalize to [0,1]
             loss_D_real_mri = criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+
+            # TODO: Check this
             loss_D_fake_mri = criterion_GAN(D_mri((fake_mri.detach() + 1) / 2), torch.zeros_like(pred_real_mri))
             loss_D_mri = (loss_D_real_mri + loss_D_fake_mri) * 0.5
             loss_D_mri.backward()
             optimizer_D_mri.step()
 
             optimizer_D_ct.zero_grad()
+
+            # TODO: Check this
             pred_real_ct = D_ct((real_ct + 1) / 2)
             loss_D_real_ct = criterion_GAN(pred_real_ct, torch.ones_like(pred_real_ct))
+
+            # TODO: Check this
             loss_D_fake_ct = criterion_GAN(D_ct((fake_ct.detach() + 1) / 2), torch.zeros_like(pred_real_ct))
             loss_D_ct = (loss_D_real_ct + loss_D_fake_ct) * 0.5
             loss_D_ct.backward()

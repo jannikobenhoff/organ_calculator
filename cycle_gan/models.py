@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torchvision.transforms as T
 
 
 class ResnetBlock(nn.Module):
@@ -67,6 +66,7 @@ class GeneratorResNet(nn.Module):
         self.model = nn.Sequential(*model)
 
     def forward(self, x):
+        # TODO: Check this
         scale_field = self.model(x)  # Output in [0,1]
         scale_field = 1.0 + 0.5 * (scale_field - 0.5)  # Map to [0.5,1.5]
         scale_field = torch.clamp(scale_field, 0.5, 1.5)  # Ensure stable range
@@ -76,7 +76,7 @@ class GeneratorResNet(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, input_nc=1, ndf=64):
         """
-        A 70×70 PatchGAN discriminator (relatively standard).
+        70×70 PatchGAN discriminator
         """
         super(Discriminator, self).__init__()
 
