@@ -26,7 +26,7 @@ def png_slices_to_nifti(png_folder, output_nifti):
     print(f"Saved 3D volume to: {output_nifti}")
 
 if __name__ == "__main__": 
-    print("Starting CycleGAN inference...", flush=True)
+    print("Starting inference...", flush=True)
 
     # --------------------------------------------------
     # 0. File Paths & Hyperparameters
