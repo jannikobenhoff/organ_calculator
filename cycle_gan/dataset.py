@@ -29,7 +29,6 @@ class Nifti2DDataset(Dataset):
         mri_dir,         # Directory containing MRI NIfTI files
         transform=None,
         slice_axis=2,    # 0 -> axial slices across x, 1 -> across y, 2 -> across z
-        normalize=True
     ):
         super().__init__()
         
@@ -38,7 +37,6 @@ class Nifti2DDataset(Dataset):
         
         self.transform = transform
         self.slice_axis = slice_axis
-        self.normalize = normalize
         
         # Pre-load volumes and create a list of slices for CT
         self.ct_slices = self._load_slices(self.ct_vol_paths)
@@ -58,10 +56,6 @@ class Nifti2DDataset(Dataset):
             num_slices = vol.shape[self.slice_axis]
             for s in range(num_slices):
                 slice_data = self._get_slice(vol, s)
-                # Normalize
-                if self.normalize:
-                    slice_data = self._contrast_normalization(slice_data)
-                
                 slices.append(slice_data)
         return slices
         
@@ -76,14 +70,6 @@ class Nifti2DDataset(Dataset):
         else:  # default: 2
             slice_2d = volume[:, :, slice_idx]
         return slice_2d
-    
-    def _contrast_normalization(self, arr):
-        """
-        Maps intensities from [-200, 500] to [-1,1].
-        """
-        arr = np.clip(arr, -200, 500)  # Clamp to the valid range
-        arr = (arr - 150.0) / 350.0  # Normalize to [-1, 1]
-        return arr.astype(np.float32)
     
     def __len__(self):
         return self.dataset_len
@@ -122,6 +108,8 @@ class Nifti2DDataset(Dataset):
         # Save using torchvision
         vutils.save_image(image_for_png, output_path)
         print(f"Saved CT slice {slice_index} to {output_path}")
+
+
 class SingleVolume2DDataset(Dataset):
     """
     Loads a single 3D NIfTI volume, extracts 2D slices along `slice_axis`,
@@ -137,7 +125,6 @@ class SingleVolume2DDataset(Dataset):
         super().__init__()
         self.transform = transform
         self.slice_axis = slice_axis
-        self.apply_contrast_norm = apply_contrast_norm
 
         # Load 3D volume
         volume_nifti = nib.load(volume_path)
@@ -157,19 +144,7 @@ class SingleVolume2DDataset(Dataset):
         else:
             slice_2d = self.volume[:, :, slice_idx]  # Default: axial (Z-axis)
 
-        # Apply contrast normalization if needed
-        if self.apply_contrast_norm:
-            slice_2d = self._contrast_normalization(slice_2d)
-
         return slice_2d
-
-    def _contrast_normalization(self, arr):
-        """
-        Maps intensities from [-200, 500] to [-1,1] and clips values outside the range.
-        """
-        arr = np.clip(arr, -200, 500)  # Ensure values are within range
-        arr = (arr - 150.0) / 350.0  # Normalize to [-1, 1]
-        return arr.astype(np.float32)
 
     def __len__(self):
         return len(self.slices)

@@ -55,8 +55,7 @@ if __name__ == "__main__":
         ct_dir=root_ct_train,
         mri_dir=root_mri_train,
         transform=nifit_transform,
-        slice_axis=2,
-        normalize=True
+        slice_axis=2
     )
 
     train_loader = DataLoader(

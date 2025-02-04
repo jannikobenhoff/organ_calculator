@@ -69,8 +69,7 @@ if __name__ == "__main__":
     dataset = SingleVolume2DDataset(
         volume_path=CT_VOLUME_FILE,
         transform=nifit_transform,
-        slice_axis=2,
-        apply_contrast_norm=True
+        slice_axis=2
     )
 
     data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
