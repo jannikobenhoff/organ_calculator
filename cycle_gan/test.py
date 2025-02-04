@@ -1,4 +1,5 @@
 import shutil
+from matplotlib import pyplot as plt
 import torch
 import torchvision.utils as vutils
 import os
@@ -97,8 +98,14 @@ if __name__ == "__main__":
             # Save PNG for CT, Scalar Field, & Fake MRI
             # ------------------------------------
             # 1) Fake MRI slice
+            fake_mri_np = fake_mri.cpu().numpy()[0, 0]  # [B,C,H,W] -> [H,W]
             fake_mri_out_path = os.path.join(OUTPUT_SLICE_DIR, f"fakeMRI_{i:04d}.png")
-            vutils.save_image(fake_mri, fake_mri_out_path, normalize=True)
+            # vutils.save_image(fake_mri, fake_mri_out_path, normalize=True)
+            plt.imsave(
+                os.path.join(OUTPUT_SLICE_DIR, f"fakeMRI_{i:03d}.png"),
+                fake_mri_np,
+                cmap='gray'
+            )
             
             # 2) CT slice
             ct_slice_out_path = os.path.join(CT_OUTPUT_SLICE_DIR, f"CT_{i:04d}.png")
