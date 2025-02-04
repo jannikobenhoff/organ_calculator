@@ -1,10 +1,11 @@
+import shutil
 import torch
 import torchvision.utils as vutils
 import os
 from torch.utils.data import DataLoader
-from models import GeneratorResNet
+from models import UNet
 import glob
-from dataset import SingleVolume2DDataset  
+from dataset import SingleVolume2DDataset, Nifti2DDataset
 from train import nifit_transform
 import SimpleITK as sitk
 
@@ -37,6 +38,11 @@ if __name__ == "__main__":
     SCALAR_FIELD_DIR = "scalar_fields"
     OUTPUT_VOLUME_PATH = "fake_mri_volume.nii.gz"
 
+    for directory in [OUTPUT_SLICE_DIR, CT_OUTPUT_SLICE_DIR, SCALAR_FIELD_DIR]:
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
+
+    # Then create fresh directories
     os.makedirs(OUTPUT_SLICE_DIR, exist_ok=True)
     os.makedirs(CT_OUTPUT_SLICE_DIR, exist_ok=True)
     os.makedirs(SCALAR_FIELD_DIR, exist_ok=True)
@@ -46,7 +52,7 @@ if __name__ == "__main__":
     # --------------------------------------------------
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    G_ct2mri = GeneratorResNet(input_nc=1, output_nc=1, n_residual_blocks=9).to(device)
+    G_ct2mri = UNet().to(device)
 
     # Load the checkpoint
     checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
@@ -66,47 +72,36 @@ if __name__ == "__main__":
 
     # Load dataset: extract slices from a NIfTI file
     # 2. Load dataset
-    dataset = SingleVolume2DDataset(
-        volume_path=CT_VOLUME_FILE,
+    dataset = Nifti2DDataset(
+        ct_dir=CT_VOLUME_FILE,
+        mri_dir=None,
         transform=nifit_transform,
         slice_axis=2
     )
 
     data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-
     # --------------------------------------------------
     # 3. Inference: Generate All Slices
     # --------------------------------------------------
-    all_fake_slices = []  
-
     with torch.no_grad():
         for i, (ct_slice,) in enumerate(data_loader):
             ct_slice_gpu = ct_slice.to(device)
 
             # **Generate the scalar field (output of generator)**
-            scalar_field = G_ct2mri(ct_slice_gpu)  # Output range: ~[0.5, 1.5]
-
-            # **Apply scalar field to the input CT slice**
-            fake_mri = ct_slice_gpu * scalar_field  
-            fake_mri = (fake_mri * 350) + 150  # Convert [-1,1] → [-200,500]
-            fake_mri = torch.clamp(fake_mri, -200, 500)  # Prevent outliers
+            fake_mri, scalar_field = G_ct2mri(ct_slice_gpu) 
 
             # Convert tensors to numpy for saving
-            fake_mri_2d = fake_mri[0, 0].cpu().numpy()  
-            fake_mri_png = (fake_mri - (-200)) / (500 - (-200))  # Scale to [0,1]
+            fake_mri_2d = fake_mri.cpu().numpy()[0, 0]  # [B,C,H,W] -> [H,W]
 
             scalar_field_2d = scalar_field[0, 0].cpu().numpy()  
-
-            # Store transformed slices for NIfTI reconstruction
-            all_fake_slices.append(fake_mri_2d)
 
             # ------------------------------------
             # Save PNG for CT, Scalar Field, & Fake MRI
             # ------------------------------------
             # 1) Fake MRI slice
             fake_mri_out_path = os.path.join(OUTPUT_SLICE_DIR, f"fakeMRI_{i:04d}.png")
-            vutils.save_image(fake_mri_png, fake_mri_out_path, normalize=True)
+            vutils.save_image(fake_mri_2d, fake_mri_out_path, normalize=True)
             
             # 2) CT slice
             ct_slice_out_path = os.path.join(CT_OUTPUT_SLICE_DIR, f"CT_{i:04d}.png")

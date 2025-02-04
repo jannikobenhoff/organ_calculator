@@ -105,44 +105,21 @@ if __name__ == "__main__":
             #  Train Generators
             # ------------------
             optimizer_G.zero_grad()
-            
-            # Identity loss (G_ct2mri should return 1 for MRI and vice versa)
-            # identity_mri_field = G_ct2mri(real_mri)  
-            # identity_mri = real_mri * identity_mri_field  
-            # loss_id_mri = criterion_identity(identity_mri, real_mri) * lambda_identity
-            
-            # identity_ct_field = G_mri2ct(real_ct)
-            # identity_ct = real_ct * identity_ct_field  
-            # loss_id_ct = criterion_identity(identity_ct, real_ct) * lambda_identity
 
             # Forward pass: Generate scalar fields and transformed images
-            fake_mri, scale_field_ct2mri = G_ct2mri(real_ct)  # CT → MRI field # TODO: adjust returns
-            fake_ct, scale_field_mri2ct = G_mri2ct(real_mri)  # MRI → CT field
-
+            fake_mri, scale_field_ct2mri = G_ct2mri(real_ct)
+            fake_ct, scale_field_mri2ct = G_mri2ct(real_mri)
 
             # GAN loss
             pred_fake_mri = D_mri(fake_mri)
             loss_GAN_ct2mri = criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
             
-            # pred_fake_ct = D_ct(fake_ct)
-            # loss_GAN_mri2ct = criterion_GAN(pred_fake_ct, torch.ones_like(pred_fake_ct))
-
-            # Cycle consistency loss
-            # rec_ct = G_mri2ct(fake_mri) * fake_mri  # Recovered CT = MRI2CT Field × fake MRI
-            # loss_cycle_ct = criterion_cycle(rec_ct, real_ct) * lambda_cycle
-
-            # rec_mri = G_ct2mri(fake_ct) * fake_ct  # Recovered MRI = CT2MRI Field × fake CT
-            # loss_cycle_mri = criterion_cycle(rec_mri, real_mri) * lambda_cycle
-
             # Compute Grad2D Loss (encourages smooth transformation fields)
             loss_grad_ct2mri = criterion_grad.loss(None, scale_field_ct2mri) * lambda_grad
             loss_grad_mri2ct = criterion_grad.loss(None, scale_field_mri2ct) * lambda_grad
 
             # Total generator loss (Including Grad regularization)
-            loss_G = (loss_GAN_ct2mri +loss_grad_ct2mri + loss_grad_mri2ct)
-                    #   + loss_GAN_mri2ct + 
-                    # loss_cycle_ct + loss_cycle_mri + 
-                    # loss_id_mri + loss_id_ct + 
+            loss_G = loss_GAN_ct2mri + loss_grad_ct2mri + loss_grad_mri2ct
                     
             loss_G.backward()
             optimizer_G.step()
@@ -152,51 +129,24 @@ if __name__ == "__main__":
             # -----------------------
             optimizer_D_mri.zero_grad()
 
-            # TODO: Check this
             pred_real_mri = D_mri(real_mri)
             loss_D_real_mri = criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
 
-            # TODO: Check this
             loss_D_fake_mri = criterion_GAN(D_mri(fake_mri.detach()), torch.zeros_like(pred_real_mri))
             loss_D_mri = (loss_D_real_mri + loss_D_fake_mri) * 0.5
             loss_D_mri.backward()
             optimizer_D_mri.step()
 
-            # optimizer_D_ct.zero_grad()
-
-            # TODO: Check this
-            # pred_real_ct = D_ct(real_ct)
-            # loss_D_real_ct = criterion_GAN(pred_real_ct, torch.ones_like(pred_real_ct))
-
-            # TODO: Check this
-            # loss_D_fake_ct = criterion_GAN(D_ct(fake_ct.detach()), torch.zeros_like(pred_real_ct))
-            # loss_D_ct = (loss_D_real_ct + loss_D_fake_ct) * 0.5
-            # loss_D_ct.backward()
-            # optimizer_D_ct.step()
-
             if i % 100 == 0:
                 print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
-                    f"[D_mri: {loss_D_mri.item():.6f}"
-                    f"[G: {loss_G.item():.4f}, Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]")
+                    f"[D_mri: {loss_D_mri.item():.6f}] ")
+                    # f"[G: {loss_G.item():.4f}, Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]")
 
                 print(f"Mean Scalar Field CT->MRI: {scale_field_ct2mri.mean().item():.4f}, MRI->CT: {scale_field_mri2ct.mean().item():.4f}")
 
                 # Log min/max values
                 print(f"Min Scalar Field CT->MRI: {scale_field_ct2mri.min().item():.4f}, Max: {scale_field_ct2mri.max().item():.4f}")
                 print(f"Min Scalar Field MRI->CT: {scale_field_mri2ct.min().item():.4f}, Max: {scale_field_mri2ct.max().item():.4f}")
-   
-            # if i % 200 == 0 and :  # e.g., save every 200 batches
-            #     # Suppose fake_mri is your generated MRI: shape [B, 1, H, W]
-            #     # Convert it to a grid and save as a PNG
-            #     out_path = f"epoch_{epoch}_batch_{i}_fakeMRI.png"
-                
-            #     # Denormalize if you used T.Normalize(mean=[0.5], std=[0.5]) etc.
-            #     # A quick denormalization can be done in code or you can just accept that
-            #     # the images are in [-1, 1].
-                
-            #     vutils.save_image(fake_mri, out_path, normalize=True, range=(-1, 1))
-            #     print(f"Saved synthesized MRI sample to {out_path}")
-            
 
         checkpoint_path = f"{checkpoint_directory}/cyclegan_epoch_{epoch:03d}.pth"
         torch.save({
