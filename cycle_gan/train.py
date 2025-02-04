@@ -34,17 +34,14 @@ if __name__ == "__main__":
     print("Starting CycleGAN training...", flush=True)
 
     criterion_GAN = nn.MSELoss()
-    criterion_cycle = nn.L1Loss()
-    criterion_identity = nn.L1Loss()
     criterion_grad = Grad(penalty='l1')
 
     # Hyperparameters
     batch_size = 2
     n_epochs = 10
-    lambda_cycle = 7.5  # Weight for cycle loss
-    lambda_identity = 2.5 # Weight for identity loss
+
     lambda_grad = 0.0  # Weight for gradient loss
-    lr_d = 2e-3  # Discriminator learning rate
+    lr_d = 5e-5  # Discriminator learning rate
     lr = 5e-5  # Optimizer learning rate
 
     # Dataloaders
@@ -94,7 +91,6 @@ if __name__ == "__main__":
     )
     
     optimizer_D_mri = optim.Adam(D_mri.parameters(), lr=lr_d, betas=(0.5, 0.999))
-    optimizer_D_ct = optim.Adam(D_ct.parameters(), lr=lr_d, betas=(0.5, 0.999))
 
     for epoch in range(n_epochs):
         for i, (real_ct, real_mri) in enumerate(train_loader):
@@ -108,7 +104,7 @@ if __name__ == "__main__":
 
             # Forward pass: Generate scalar fields and transformed images
             fake_mri, scale_field_ct2mri = G_ct2mri(real_ct)
-            fake_ct, scale_field_mri2ct = G_mri2ct(real_mri)
+            # fake_ct, scale_field_mri2ct = G_mri2ct(real_mri)
 
             # GAN loss
             pred_fake_mri = D_mri(fake_mri)
@@ -116,10 +112,10 @@ if __name__ == "__main__":
             
             # Compute Grad2D Loss (encourages smooth transformation fields)
             loss_grad_ct2mri = criterion_grad.loss(None, scale_field_ct2mri) * lambda_grad
-            loss_grad_mri2ct = criterion_grad.loss(None, scale_field_mri2ct) * lambda_grad
+            # loss_grad_mri2ct = criterion_grad.loss(None, scale_field_mri2ct) * lambda_grad
 
             # Total generator loss (Including Grad regularization)
-            loss_G = loss_GAN_ct2mri + loss_grad_ct2mri + loss_grad_mri2ct
+            loss_G = loss_GAN_ct2mri + loss_grad_ct2mri #+ loss_grad_mri2ct
                     
             loss_G.backward()
             optimizer_G.step()
@@ -142,11 +138,11 @@ if __name__ == "__main__":
                     f"[D_mri: {loss_D_mri.item():.6f}] ")
                     # f"[G: {loss_G.item():.4f}, Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]")
 
-                print(f"Mean Scalar Field CT->MRI: {scale_field_ct2mri.mean().item():.4f}, MRI->CT: {scale_field_mri2ct.mean().item():.4f}")
+                print(f"Mean Scalar Field CT->MRI: {scale_field_ct2mri.mean().item():.4f}") #, MRI->CT: {scale_field_mri2ct.mean().item():.4f}")
 
                 # Log min/max values
                 print(f"Min Scalar Field CT->MRI: {scale_field_ct2mri.min().item():.4f}, Max: {scale_field_ct2mri.max().item():.4f}")
-                print(f"Min Scalar Field MRI->CT: {scale_field_mri2ct.min().item():.4f}, Max: {scale_field_mri2ct.max().item():.4f}")
+                # print(f"Min Scalar Field MRI->CT: {scale_field_mri2ct.min().item():.4f}, Max: {scale_field_mri2ct.max().item():.4f}")
 
         checkpoint_path = f"{checkpoint_directory}/cyclegan_epoch_{epoch:03d}.pth"
         torch.save({
@@ -157,7 +153,6 @@ if __name__ == "__main__":
             'D_ct_state_dict': D_ct.state_dict(),
             'optimizer_G_state_dict': optimizer_G.state_dict(),
             'optimizer_D_mri_state_dict': optimizer_D_mri.state_dict(),
-            'optimizer_D_ct_state_dict': optimizer_D_ct.state_dict(),
         }, checkpoint_path)
 
         print(f"Saved checkpoint to {checkpoint_path}")
