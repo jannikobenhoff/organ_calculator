@@ -18,7 +18,6 @@ nifit_transform = T.Compose([
     T.Lambda(lambda x: torch.clamp(x, -200, 500)),  # Ensure no outliers
     T.Normalize(mean=[0.5], std=[0.5]),  # Normalize to [-1, 1]
 ])
-# maybe clamp values: torch.clamp(x, -200, 500) so we dont loose values
 
 
 def weights_init_normal(m):
@@ -30,19 +29,7 @@ def weights_init_normal(m):
             nn.init.constant_(m.bias.data, 0.0)
 
 if __name__ == "__main__":
-    # Check normalized slice
-    # train_dataset = Nifti2DDataset(
-    #     ct_dir="../data/inference_input",
-    #     mri_dir="../data/inference_input",
-    #     transform=nifit_transform,
-    #     slice_axis=2,
-    #     min_max_normalize=True
-    # )
-
-    # train_dataset.export_ct_slice_as_png(0, "ct_slice.png")
-
     print("Starting CycleGAN training...", flush=True)
-    print("Check that all directories and paths are correct!")
 
     criterion_GAN = nn.MSELoss()
     criterion_cycle = nn.L1Loss()
@@ -129,28 +116,27 @@ if __name__ == "__main__":
             loss_id_ct = criterion_identity(identity_ct, real_ct) * lambda_identity
 
             # Forward pass: Generate scalar fields and transformed images
-            # Add noise to the generated images
-            noise_level = 0.05
-            noise = torch.randn_like(real_ct) * noise_level
-           
             scale_field_ct2mri = G_ct2mri(real_ct)  # CT → MRI field
             scale_field_mri2ct = G_mri2ct(real_mri)  # MRI → CT field
 
-            fake_mri = (real_ct * scale_field_ct2mri) + noise # CT × field → synthetic MRI
-            fake_ct = (real_mri * scale_field_mri2ct) + noise # MRI × field → synthetic CT
+            fake_mri = (real_ct * scale_field_ct2mri)  # CT × field → synthetic MRI
+            fake_ct = (real_mri * scale_field_mri2ct)  # MRI × field → synthetic CT
 
             # GAN loss
-            pred_fake_mri = D_mri(fake_mri)
+            pred_fake_mri = D_mri((fake_mri + 1) / 2)  # Normalize to [0,1]
             loss_GAN_ct2mri = criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
 
-            pred_fake_ct = D_ct(fake_ct)
+            pred_fake_ct = D_ct((fake_ct + 1) / 2)
             loss_GAN_mri2ct = criterion_GAN(pred_fake_ct, torch.ones_like(pred_fake_ct))
 
             # Cycle consistency loss
             rec_ct = G_mri2ct(fake_mri) * fake_mri  # Recovered CT = MRI2CT Field × fake MRI
+            rec_ct = (rec_ct - 0.5) * 2  # Normalize back to [-1,1]
+
             loss_cycle_ct = criterion_cycle(rec_ct, real_ct) * lambda_cycle
             
             rec_mri = G_ct2mri(fake_ct) * fake_ct  # Recovered MRI = CT2MRI Field × fake CT
+            rec_mri = (rec_mri - 0.5) * 2  # Normalize back to [-1,1]
             loss_cycle_mri = criterion_cycle(rec_mri, real_mri) * lambda_cycle
 
             # Compute Grad2D Loss (encourages smooth transformation fields)

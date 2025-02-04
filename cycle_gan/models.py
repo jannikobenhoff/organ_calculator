@@ -67,8 +67,13 @@ class GeneratorResNet(nn.Module):
 
     def forward(self, x):
         scale_field = self.model(x)  # Output scalar field in [0,1]
-        scale_field = 1.0 + 0.5 * (scale_field - 0.5)  # Map [0,1] → [0.5,1.5]
-        return scale_field  # Return scalar field only
+        scale_field = 1.0 + 0.5 * (scale_field - 0.5)  # Maps [0,1] -> [0.5,1.5]
+
+        # Normalize back to same range as input!
+        scale_field = (scale_field - 0.5) * 2  # Maps back to [-1, 1]
+
+        return scale_field
+
 
 
 
