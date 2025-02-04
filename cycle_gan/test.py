@@ -37,6 +37,7 @@ if __name__ == "__main__":
     CT_OUTPUT_SLICE_DIR = "ct_slices"
     SCALAR_FIELD_DIR = "scalar_fields"
     OUTPUT_VOLUME_PATH = "fake_mri_volume.nii.gz"
+    CT_OUTPUT_VOLUME_PATH = "ct_volume.nii.gz"
 
     for directory in [OUTPUT_SLICE_DIR, CT_OUTPUT_SLICE_DIR, SCALAR_FIELD_DIR]:
         if os.path.exists(directory):
@@ -116,5 +117,6 @@ if __name__ == "__main__":
     # 4. Reconstruct Full 3D Volume as NIfTI
     # --------------------------------------------------
     png_slices_to_nifti(OUTPUT_SLICE_DIR, OUTPUT_VOLUME_PATH)
+    png_slices_to_nifti(CT_OUTPUT_SLICE_DIR, CT_OUTPUT_VOLUME_PATH)
 
     print(f"Reassembled 3D volume saved to {OUTPUT_VOLUME_PATH}")

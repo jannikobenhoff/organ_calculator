@@ -70,6 +70,7 @@ class Nifti2DDataset(Dataset):
             slice_2d = volume[:, slice_idx, :]
         else:  # default: 2
             slice_2d = volume[:, :, slice_idx]
+        
         return slice_2d
     
     def __len__(self):
