@@ -6,6 +6,9 @@ import torch.nn as nn
 class UNet(nn.Module):
     def __init__(self, input_channels=1, output_channels=1):
         super().__init__()
+        self.input_channels = input_channels
+        self.output_channels = output_channels
+
         nb_filter = [32, 64, 128, 256, 512, 1024]
         self.nb_filter = nb_filter
         self.pool = nn.MaxPool3d(2)
