@@ -90,9 +90,6 @@ if __name__ == "__main__":
             # **Generate the scalar field (output of generator)**
             fake_mri, scalar_field = G_ct2mri(ct_slice_gpu) 
 
-            # Convert tensors to numpy for saving
-            fake_mri_2d = fake_mri.cpu().numpy()[0, 0]  # [B,C,H,W] -> [H,W]
-
             scalar_field_2d = scalar_field[0, 0].cpu().numpy()  
 
             # ------------------------------------
@@ -100,7 +97,7 @@ if __name__ == "__main__":
             # ------------------------------------
             # 1) Fake MRI slice
             fake_mri_out_path = os.path.join(OUTPUT_SLICE_DIR, f"fakeMRI_{i:04d}.png")
-            vutils.save_image(fake_mri_2d, fake_mri_out_path, normalize=True)
+            vutils.save_image(fake_mri, fake_mri_out_path, normalize=True)
             
             # 2) CT slice
             ct_slice_out_path = os.path.join(CT_OUTPUT_SLICE_DIR, f"CT_{i:04d}.png")
