@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # --------------------------------------------------
     # 0. File Paths & Hyperparameters
     # --------------------------------------------------
-    CHECKPOINT_PATH = "checkpoints/cyclegan_epoch_001.pth"
+    CHECKPOINT_PATH = "checkpoints/cyclegan_epoch_009.pth"
     CT_VOLUME_PATH = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/"
     OUTPUT_SLICE_DIR = "fake_slices"
     CT_OUTPUT_SLICE_DIR = "ct_slices"
@@ -90,9 +90,13 @@ if __name__ == "__main__":
 
             # **Apply scalar field to the input CT slice**
             fake_mri = ct_slice_gpu * scalar_field  
+            fake_mri = (fake_mri * 350) + 150  # Convert [-1,1] → [-200,500]
+            fake_mri = torch.clamp(fake_mri, -200, 500)  # Prevent outliers
 
             # Convert tensors to numpy for saving
             fake_mri_2d = fake_mri[0, 0].cpu().numpy()  
+            fake_mri_png = (fake_mri - (-200)) / (500 - (-200))  # Scale to [0,1]
+
             scalar_field_2d = scalar_field[0, 0].cpu().numpy()  
 
             # Store transformed slices for NIfTI reconstruction
@@ -103,7 +107,7 @@ if __name__ == "__main__":
             # ------------------------------------
             # 1) Fake MRI slice
             fake_mri_out_path = os.path.join(OUTPUT_SLICE_DIR, f"fakeMRI_{i:04d}.png")
-            vutils.save_image(fake_mri, fake_mri_out_path, normalize=True)
+            vutils.save_image(fake_mri_png, fake_mri_out_path, normalize=True)
             
             # 2) CT slice
             ct_slice_out_path = os.path.join(CT_OUTPUT_SLICE_DIR, f"CT_{i:04d}.png")
