@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # --------------------------------------------------
     # 0. File Paths & Hyperparameters
     # --------------------------------------------------
-    CHECKPOINT_PATH = "checkpoints/cyclegan_epoch_003.pth"
+    CHECKPOINT_PATH = "checkpoints/cyclegan_epoch_001.pth"
     CT_VOLUME_PATH = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/"
     OUTPUT_SLICE_DIR = "fake_slices"
     CT_OUTPUT_SLICE_DIR = "ct_slices"
