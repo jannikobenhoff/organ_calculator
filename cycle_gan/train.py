@@ -37,7 +37,7 @@ if __name__ == "__main__":
     criterion_grad = Grad(penalty='l1')
 
     # Hyperparameters
-    batch_size = 2
+    batch_size = 4
     n_epochs = 10
 
     lambda_grad = 0.0  # Weight for gradient loss
