@@ -135,8 +135,8 @@ if __name__ == "__main__":
 
             if i % 100 == 0:
                 print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
-                    f"[D_mri: {loss_D_mri.item():.6f}] ")
-                    # f"[G: {loss_G.item():.4f}, Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]")
+                    f"[D_mri: {loss_D_mri.item():.6f}] "
+                    f"[G: {loss_G.item():.4f}] ")  #, Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]")
 
                 print(f"Mean Scalar Field CT->MRI: {scale_field_ct2mri.mean().item():.4f}") #, MRI->CT: {scale_field_mri2ct.mean().item():.4f}")
 
