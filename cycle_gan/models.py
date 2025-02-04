@@ -11,8 +11,8 @@ class UNet(nn.Module):
 
         nb_filter = [32, 64, 128, 256, 512, 1024]
         self.nb_filter = nb_filter
-        self.pool = nn.MaxPool3d(2)
-        self.up = nn.Upsample(scale_factor=(2,2,2), mode='trilinear', align_corners=True)
+        self.pool = nn.MaxPool2d(2)
+        self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 
         self.conv0_0 = VGGBlock(input_channels, nb_filter[0], nb_filter[0])
         self.conv1_0 = VGGBlock(nb_filter[0], nb_filter[1], nb_filter[1],stride=2)
@@ -27,7 +27,7 @@ class UNet(nn.Module):
         self.conv1_1 = VGGBlock(nb_filter[1]+nb_filter[2], nb_filter[1], nb_filter[1])
         self.conv0_1 = VGGBlock(nb_filter[0]+nb_filter[1], nb_filter[0], nb_filter[0])
 
-        self.final = nn.Conv3d(nb_filter[0], output_channels, kernel_size=1)
+        self.final = nn.Conv2d(nb_filter[0], output_channels, kernel_size=1)
 
     def forward(self, input):
         # Add shape checking
@@ -59,10 +59,10 @@ class VGGBlock(nn.Module):
         else:
             self.relu = nn.ReLU(inplace=True)
 
-        self.conv1 = nn.Conv3d(in_channels, middle_channels, 3, padding=1,stride=stride)
-        self.bn1 = nn.InstanceNorm3d(middle_channels,affine=True)
-        self.conv2 = nn.Conv3d(middle_channels, out_channels, 3, padding=1)
-        self.bn2 = nn.InstanceNorm3d(out_channels,affine=True)
+        self.conv1 = nn.Conv2d(in_channels, middle_channels, 3, padding=1,stride=stride)
+        self.bn1 = nn.InstanceNorm2d(middle_channels,affine=True)
+        self.conv2 = nn.Conv2d(middle_channels, out_channels, 3, padding=1)
+        self.bn2 = nn.InstanceNorm2d(out_channels,affine=True)
 
     def forward(self, x):
         out = self.conv1(x)
