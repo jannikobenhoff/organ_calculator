@@ -12,11 +12,10 @@ from losses import Grad
 
 IMG_SIZE = 256
 nifit_transform = T.Compose([
-    # Convert from [0,1] float => scale to [-1, 1]
     T.Resize((IMG_SIZE, IMG_SIZE)),
-    T.ToTensor(),  # shape [C,H,W], and scales to [0,1] if input was [0,255]
-    T.Lambda(lambda x: torch.clamp(x, -200, 500)),  # Ensure no outliers
-    T.Normalize(mean=[0.5], std=[0.5]),  # Normalize to [-1, 1]
+    T.ToTensor(),
+    T.Lambda(lambda x: torch.clamp(x, -200, 500)),  # Ensure no extreme outliers
+    T.Normalize(mean=[150], std=[350]),  # Normalize [-200,500] → [-1,1]
 ])
 
 
@@ -35,14 +34,15 @@ if __name__ == "__main__":
     criterion_cycle = nn.L1Loss()
     criterion_identity = nn.L1Loss()
     criterion_grad = Grad(penalty='l1')
-    lambda_grad = 0.05  # 0.01
 
     # Hyperparameters
     batch_size = 2
-    lr = 5e-5
     n_epochs = 10
     lambda_cycle = 7.5  # Weight for cycle loss
-    lambda_identity = 2.5 # Weight for identity loss (sometimes 0.5 * lambda_cycle)
+    lambda_identity = 2.5 # Weight for identity loss
+    lambda_grad = 0.05  # Weight for gradient loss
+    lr_d = 2e-3  # Discriminator learning rate
+    lr = 5e-5  # Optimizer learning rate
 
     # Dataloaders
     root_ct_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         ct_dir=root_ct_train,
         mri_dir=root_mri_train,
         transform=nifit_transform,
-        slice_axis=2,          # typically axial
+        slice_axis=2,
         normalize=True
     )
 
@@ -66,8 +66,6 @@ if __name__ == "__main__":
     )
 
     print("Number of training samples:", len(train_dataset), flush=True)
-
-    # Confirm we get something
     for i, (ct_slice, mri_slice) in enumerate(train_loader):
         print("CT slice shape:", ct_slice.shape)   # [B, 1, H, W]
         print("MRI slice shape:", mri_slice.shape) # [B, 1, H, W]
@@ -92,7 +90,7 @@ if __name__ == "__main__":
         itertools.chain(G_ct2mri.parameters(), G_mri2ct.parameters()),
         lr=lr, betas=(0.5, 0.999)
     )
-    lr_d = 2e-3  # Discriminator learning rate
+    
     optimizer_D_mri = optim.Adam(D_mri.parameters(), lr=lr_d, betas=(0.5, 0.999))
     optimizer_D_ct = optim.Adam(D_ct.parameters(), lr=lr_d, betas=(0.5, 0.999))
 
@@ -131,12 +129,9 @@ if __name__ == "__main__":
 
             # Cycle consistency loss
             rec_ct = G_mri2ct(fake_mri) * fake_mri  # Recovered CT = MRI2CT Field × fake MRI
-            rec_ct = (rec_ct - 0.5) * 2  # Normalize back to [-1,1]
-
             loss_cycle_ct = criterion_cycle(rec_ct, real_ct) * lambda_cycle
-            
+
             rec_mri = G_ct2mri(fake_ct) * fake_ct  # Recovered MRI = CT2MRI Field × fake CT
-            rec_mri = (rec_mri - 0.5) * 2  # Normalize back to [-1,1]
             loss_cycle_mri = criterion_cycle(rec_mri, real_mri) * lambda_cycle
 
             # Compute Grad2D Loss (encourages smooth transformation fields)
@@ -155,17 +150,17 @@ if __name__ == "__main__":
             #  Train Discriminator
             # -----------------------
             optimizer_D_mri.zero_grad()
-            pred_real_mri = D_mri(real_mri)
+            pred_real_mri = D_mri((real_mri + 1) / 2)  # Normalize to [0,1]
             loss_D_real_mri = criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
-            loss_D_fake_mri = criterion_GAN(D_mri(fake_mri.detach()), torch.zeros_like(pred_real_mri))
+            loss_D_fake_mri = criterion_GAN(D_mri((fake_mri.detach() + 1) / 2), torch.zeros_like(pred_real_mri))
             loss_D_mri = (loss_D_real_mri + loss_D_fake_mri) * 0.5
             loss_D_mri.backward()
             optimizer_D_mri.step()
 
             optimizer_D_ct.zero_grad()
-            pred_real_ct = D_ct(real_ct)
+            pred_real_ct = D_ct((real_ct + 1) / 2)
             loss_D_real_ct = criterion_GAN(pred_real_ct, torch.ones_like(pred_real_ct))
-            loss_D_fake_ct = criterion_GAN(D_ct(fake_ct.detach()), torch.zeros_like(pred_real_ct))
+            loss_D_fake_ct = criterion_GAN(D_ct((fake_ct.detach() + 1) / 2), torch.zeros_like(pred_real_ct))
             loss_D_ct = (loss_D_real_ct + loss_D_fake_ct) * 0.5
             loss_D_ct.backward()
             optimizer_D_ct.step()
