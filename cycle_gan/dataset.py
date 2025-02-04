@@ -88,26 +88,26 @@ class Nifti2DDataset(Dataset):
 
         return ct_img, mri_img
     
-    def export_ct_slice_as_png(self, slice_index, output_path="ct_slice.png"):
-        """
-        Exports a single CT slice as a PNG file.
-        :param slice_index: Index of the slice to export
-        :param output_path: File path where the PNG will be saved
-        """
-        if slice_index >= len(self.ct_slices):
-            print(f"Error: slice_index {slice_index} out of range. Max: {len(self.ct_slices) - 1}")
-            return
+    # def export_ct_slice_as_png(self, slice_index, output_path="ct_slice.png"):
+    #     """
+    #     Exports a single CT slice as a PNG file.
+    #     :param slice_index: Index of the slice to export
+    #     :param output_path: File path where the PNG will be saved
+    #     """
+    #     if slice_index >= len(self.ct_slices):
+    #         print(f"Error: slice_index {slice_index} out of range. Max: {len(self.ct_slices) - 1}")
+    #         return
         
-        # Get the raw slice
-        ct_slice = self.ct_slices[slice_index]
+    #     # Get the raw slice
+    #     ct_slice = self.ct_slices[slice_index]
         
-        # Convert [-1,1] to [0,1] for saving
-        image_for_png = 0.5 * (torch.tensor(ct_slice) + 1.0)
-        image_for_png = image_for_png.unsqueeze(0)  # [1, H, W] for torchvision
+    #     # Convert [-1,1] to [0,1] for saving
+    #     image_for_png = 0.5 * (torch.tensor(ct_slice) + 1.0)
+    #     image_for_png = image_for_png.unsqueeze(0)  # [1, H, W] for torchvision
 
-        # Save using torchvision
-        vutils.save_image(image_for_png, output_path)
-        print(f"Saved CT slice {slice_index} to {output_path}")
+    #     # Save using torchvision
+    #     vutils.save_image(image_for_png, output_path)
+    #     print(f"Saved CT slice {slice_index} to {output_path}")
 
 
 class SingleVolume2DDataset(Dataset):

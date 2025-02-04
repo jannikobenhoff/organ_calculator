@@ -69,8 +69,8 @@ if __name__ == "__main__":
 
     print("Number of training samples:", len(train_dataset), flush=True)
     for i, (ct_slice, mri_slice) in enumerate(train_loader):
-        print("CT slice shape:", ct_slice.shape)   # [B, 1, H, W]
-        print("MRI slice shape:", mri_slice.shape) # [B, 1, H, W]
+        print("CT slice shape:", ct_slice.shape)   # [batch_size, 1, H, W]
+        print("MRI slice shape:", mri_slice.shape) # [batch_size, 1, H, W]
         break
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         for i, (real_ct, real_mri) in enumerate(train_loader):
             real_ct = real_ct.to(device)
             real_mri = real_mri.to(device)
-            
+
             # ------------------
             #  Train Generators
             # ------------------

@@ -4,9 +4,8 @@ import torch.nn as nn
 
 
 class UNet(nn.Module):
-    def __init__(self, input_channels=1, output_channels=1,):
+    def __init__(self, input_channels=1, output_channels=1):
         super().__init__()
-        self._leaky_relu_alpha = 0.01
         nb_filter = [32, 64, 128, 256, 512, 1024]
         self.nb_filter = nb_filter
         self.pool = nn.MaxPool3d(2)
@@ -28,6 +27,9 @@ class UNet(nn.Module):
         self.final = nn.Conv3d(nb_filter[0], output_channels, kernel_size=1)
 
     def forward(self, input):
+        # Add shape checking
+        assert input.size(1) == self.input_channels, f"Expected {self.input_channels} channels but got {input.size(1)}"
+
         x0_0 = self.conv0_0(input)
         x1_0 = self.conv1_0(x0_0)
         x2_0 = self.conv2_0(x1_0)
@@ -47,7 +49,7 @@ class UNet(nn.Module):
 
 
 class VGGBlock(nn.Module):
-    def __init__(self, in_channels, middle_channels, out_channels,stride = 1,relu='lrelu'):
+    def __init__(self, in_channels, middle_channels, out_channels, stride = 1, relu='lrelu'):
         super().__init__()
         if relu=='lrelu':
             self.relu = nn.LeakyReLU(inplace=True,negative_slope=0.01)
