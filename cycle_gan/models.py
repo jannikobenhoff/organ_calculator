@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -27,12 +26,11 @@ class UNet(nn.Module):
         self.conv1_1 = VGGBlock(nb_filter[1]+nb_filter[2], nb_filter[1], nb_filter[1])
         self.conv0_1 = VGGBlock(nb_filter[0]+nb_filter[1], nb_filter[0], nb_filter[0])
 
+        
         self.final = nn.Conv2d(nb_filter[0], output_channels, kernel_size=1)
+        torch.nn.init.normal_(self.final.weight, mean=0.0, std=1e-2)
 
     def forward(self, input):
-        # Add shape checking
-        assert input.size(1) == self.input_channels, f"Expected {self.input_channels} channels but got {input.size(1)}"
-
         x0_0 = self.conv0_0(input)
         x1_0 = self.conv1_0(x0_0)
         x2_0 = self.conv2_0(x1_0)

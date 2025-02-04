@@ -41,7 +41,7 @@ if __name__ == "__main__":
     n_epochs = 10
 
     lambda_grad = 0.05  # Weight for gradient loss
-    lr_d = 5e-5  # Discriminator learning rate
+    lr_d = 1e-3  # Discriminator learning rate
     lr = 5e-5  # Optimizer learning rate
 
     # Dataloaders
@@ -78,11 +78,11 @@ if __name__ == "__main__":
     D_mri = Discriminator().to(device)
     D_ct = Discriminator().to(device)
 
-    # Apply weight initialization
-    G_ct2mri.apply(weights_init_normal)
-    G_mri2ct.apply(weights_init_normal)
-    D_mri.apply(weights_init_normal)
-    D_ct.apply(weights_init_normal)
+    # # Apply weight initialization
+    # G_ct2mri.apply(weights_init_normal)
+    # G_mri2ct.apply(weights_init_normal)
+    # D_mri.apply(weights_init_normal)
+    # D_ct.apply(weights_init_normal)
 
     # Optimizers
     optimizer_G = optim.Adam(
@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
             # Forward pass: Generate scalar fields and transformed images
             fake_mri, scale_field_ct2mri = G_ct2mri(real_ct)
-            fake_ct, scale_field_mri2ct = G_mri2ct(real_mri)
+            # fake_ct, scale_field_mri2ct = G_mri2ct(real_mri)
 
             # GAN loss
             pred_fake_mri = D_mri(fake_mri)
@@ -112,10 +112,10 @@ if __name__ == "__main__":
             
             # Compute Grad2D Loss (encourages smooth transformation fields)
             loss_grad_ct2mri = criterion_grad.loss(None, scale_field_ct2mri) * lambda_grad
-            loss_grad_mri2ct = criterion_grad.loss(None, scale_field_mri2ct) * lambda_grad
+            # loss_grad_mri2ct = criterion_grad.loss(None, scale_field_mri2ct) * lambda_grad
 
             # Total generator loss (Including Grad regularization)
-            loss_G = loss_GAN_ct2mri + loss_grad_ct2mri + loss_grad_mri2ct
+            loss_G = loss_GAN_ct2mri + loss_grad_ct2mri #+ loss_grad_mri2ct
                     
             loss_G.backward()
             optimizer_G.step()
@@ -136,7 +136,7 @@ if __name__ == "__main__":
             if i % 100 == 0:
                 print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(train_loader)}] "
                     f"[D_mri: {loss_D_mri.item():.6f}] "
-                    f"[G: {loss_G.item():.4f} , Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]")
+                    f"[G: {loss_G.item():.4f} , Grad_CT2MRI: {loss_grad_ct2mri.item():.4f}") #, Grad_MRI2CT: {loss_grad_mri2ct.item():.4f}]")
 
                 print(f"Mean Scalar Field CT->MRI: {scale_field_ct2mri.mean().item():.4f}") #, MRI->CT: {scale_field_mri2ct.mean().item():.4f}")
 
