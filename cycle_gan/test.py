@@ -70,7 +70,7 @@ if __name__ == "__main__":
     if not CT_VOLUME_FILES:
         raise FileNotFoundError(f"No NIfTI files found in {CT_VOLUME_PATH}")
 
-    CT_VOLUME_FILE = CT_VOLUME_FILES[1]  # Take the first file
+    CT_VOLUME_FILE = CT_VOLUME_FILES[0]  # Take the first file
 
     # Load dataset: extract slices from a NIfTI file
     # 2. Load dataset
