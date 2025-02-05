@@ -44,7 +44,7 @@ class UNet(nn.Module):
         x1_1 = self.conv1_1(torch.cat([x1_0, self.up(x2_1)], 1))
         x0_1 = self.conv0_1(torch.cat([x0_0, self.up(x1_1)], 1))
  
-        scaler_field = self.final(x0_1)
+        scaler_field = self.final(x0_1) + 1
 
         return scaler_field * input, scaler_field
 

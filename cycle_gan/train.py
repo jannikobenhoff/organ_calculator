@@ -12,7 +12,6 @@ from losses import Grad
 
 IMG_SIZE = 256
 
-# TODO: Check this
 nifit_transform = T.Compose([
     T.Resize((IMG_SIZE, IMG_SIZE)),
     T.ToTensor(),
@@ -40,9 +39,9 @@ if __name__ == "__main__":
     batch_size = 4
     n_epochs = 10
 
-    lambda_grad = 0.05  # Weight for gradient loss
-    lr_d = 1e-3  # Discriminator learning rate
-    lr = 5e-5  # Optimizer learning rate
+    lambda_grad = 0.01  # Weight for gradient loss
+    lr_d = 1e-3  # Discriminator learning rate 
+    lr = 3e-4  # Optimizer learning rate # TODO: next 3e-4
 
     # Dataloaders
     root_ct_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
@@ -111,7 +110,7 @@ if __name__ == "__main__":
             loss_GAN_ct2mri = criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
             
             # Compute Grad2D Loss (encourages smooth transformation fields)
-            loss_grad_ct2mri = criterion_grad.loss(None, scale_field_ct2mri) * lambda_grad
+            loss_grad_ct2mri = criterion_grad.loss(None, scale_field_ct2mri) * lambda_grad  # TODO: Check if scale field or fake_mri here
             # loss_grad_mri2ct = criterion_grad.loss(None, scale_field_mri2ct) * lambda_grad
 
             # Total generator loss (Including Grad regularization)
