@@ -28,7 +28,7 @@ class UNet(nn.Module):
 
         
         self.final = nn.Conv2d(nb_filter[0], output_channels, kernel_size=1)
-        torch.nn.init.normal_(self.final.weight, mean=0.0, std=1e-2)
+        # torch.nn.init.normal_(self.final.weight, mean=0.0, std=1e-2)
 
     def forward(self, input):
         x0_0 = self.conv0_0(input)
