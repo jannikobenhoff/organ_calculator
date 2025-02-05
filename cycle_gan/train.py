@@ -39,9 +39,9 @@ if __name__ == "__main__":
     batch_size = 24
     n_epochs = 10
 
-    lambda_grad = 1e-5  # Weight for gradient loss
+    lambda_grad = 0 #1e-5  # Weight for gradient loss
     lr_d = 3e-4  # Discriminator learning rate 
-    lr = 5e-5  # Optimizer learning rate
+    lr = 1e-4  # Optimizer learning rate
 
     # Dataloaders
     root_ct_train = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
