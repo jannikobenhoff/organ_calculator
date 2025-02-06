@@ -4,3 +4,4 @@
 /output/*
 *.pth
 *.pyc
+*.png
