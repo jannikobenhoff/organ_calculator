@@ -3,9 +3,9 @@ import torch
 import torchvision.utils as vutils
 import os
 from torch.utils.data import DataLoader
-from ms_gan.models.models import UNet
+from models.models import UNet
 import glob
-from ms_gan.dataset.ct_mri_2d_dataset import SingleVolume2DDataset
+from dataset.ct_mri_2d_dataset import SingleVolume2DDataset
 from train import nifit_transform
 import SimpleITK as sitk
 
