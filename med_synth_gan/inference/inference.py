@@ -2,9 +2,9 @@ import os
 import torch
 from pytorch_lightning.callbacks import Callback
 from torch.utils.data import DataLoader
-from dataset.single_2d_dataset import SingleVolume2DDataset
 import torchvision.utils as vutils
-from utils import png_slices_to_nifti
+from med_synth_gan.dataset.single_2d_dataset import SingleVolume2DDataset
+from med_synth_gan.inference.utils import png_slices_to_nifti
 
 
 class VolumeInferenceCallback(Callback):

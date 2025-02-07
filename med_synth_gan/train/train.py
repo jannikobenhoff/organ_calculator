@@ -1,22 +1,27 @@
 import argparse
-import os
 import sys
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
+from pytorch_lightning.callbacks import RichProgressBar
 from torch.utils.data import DataLoader
-import torchvision.transforms as T
-from dataset.ct_mri_2d_dataset import CtMri2DDataset
-from models.models import Discriminator, UNet
-from models.losses import Grad
-from torch.cuda.amp import GradScaler, autocast
-from inference.inference import VolumeInferenceCallback
+from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
+from med_synth_gan.models.models import UNet
+from med_synth_gan.models.cycle_gan import Discriminator
+from med_synth_gan.models.losses import Grad
+from med_synth_gan.inference.inference import VolumeInferenceCallback
+from pytorch_lightning.callbacks.progress import TQDMProgressBar
 
 
 class MedSynthGANModule(pl.LightningModule):
     def __init__(self, lr=1e-4, lr_d=3e-4, lambda_grad=0):
         super().__init__()
+        self.automatic_optimization = False
+        self.lr = lr
+        self.lr_d = lr_d
+        self.lambda_grad = lambda_grad
+
         self.save_hyperparameters()
 
         # Models
@@ -32,46 +37,69 @@ class MedSynthGANModule(pl.LightningModule):
     def forward(self, ct_image):
         return self.G_ct2mri(ct_image)
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx):
+        # Get optimizers
+        opt_g, opt_d = self.optimizers()
         real_ct, real_mri = batch
 
         # Train Generator
-        if optimizer_idx == 0:
-            fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
-
-            pred_fake_mri = self.D_mri(fake_mri)
-            loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
-
-            loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.hparams.lambda_grad
-
-            loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
-
-            self.log('loss_G', loss_G)
-            return loss_G
+        opt_g.zero_grad()
+        fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
+        pred_fake_mri = self.D_mri(fake_mri)
+        loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
+        loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
+        loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
+        self.manual_backward(loss_G)
+        opt_g.step()
 
         # Train Discriminator
-        if optimizer_idx == 1:
-            fake_mri, _ = self.G_ct2mri(real_ct)
+        opt_d.zero_grad()
+        # fake_mri, _ = self.G_ct2mri(real_ct)
+        pred_real_mri = self.D_mri(real_mri)
+        loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+        pred_fake_mri = self.D_mri(fake_mri.detach())
+        loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
+        loss_D = (loss_D_real + loss_D_fake) * 0.5
+        self.manual_backward(loss_D)
+        opt_d.step()
 
-            pred_real_mri = self.D_mri(real_mri)
-            loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
-
-            pred_fake_mri = self.D_mri(fake_mri.detach())
-            loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
-
-            loss_D = (loss_D_real + loss_D_fake) * 0.5
-
-            self.log('loss_D', loss_D)
-            return loss_D
+        if batch_idx % 100 == 0:
+            self.log('loss_G', loss_G, prog_bar=True)
+            self.log('loss_D', loss_D, prog_bar=True)
+            self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
+            self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
+            self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
 
     def configure_optimizers(self):
         opt_g = torch.optim.Adam(
             list(self.G_ct2mri.parameters()) + list(self.G_mri2ct.parameters()),
-            lr=self.hparams.lr
+            lr=self.lr, betas=(0.5, 0.999)
         )
-        opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.hparams.lr_d)
+        opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
 
         return [opt_g, opt_d], []
+
+
+class CustomProgressBar(TQDMProgressBar):
+    def __init__(self):
+        super().__init__(refresh_rate=100, leave=True, process_position=0)  # Update every 10 batches
+
+    def init_train_tqdm(self):
+        bar = super().init_train_tqdm()
+        bar.set_description("Training")
+        return bar
+
+    def get_metrics(self, *args, **kwargs):
+        items = super().get_metrics(*args, **kwargs)
+        return {
+            "epoch": items.get("epoch", ""),
+            "batch": items.get("step", ""),
+            "loss_G": items.get("loss_G", ""),
+            "loss_D": items.get("loss_D", ""),
+            "scalar_field_mean": items.get("scalar_field_mean", ""),
+            "scalar_field_min": items.get("scalar_field_min", ""),
+            "scalar_field_max": items.get("scalar_field_max", "")
+        }
 
 
 def parse_args(argv):
@@ -92,9 +120,9 @@ def parse_args(argv):
         help="Number of epochs (default: %(default)s)",
     )
     parser.add_argument(
-        "-lambda",
+        "-lambda_grad",
         "--lambda-grad",
-        default=1e-6,
+        default=0,#5e-7,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
@@ -108,7 +136,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=3e-4,
+        default=5e-3,
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -119,6 +147,8 @@ def parse_args(argv):
 
 def main(argv):
     args = parse_args(argv)
+
+    print("Starting MedSynthGAN training with args: {}".format(args), flush=True)
 
     # Dataset and DataLoader
     train_dataset = CtMri2DDataset(
@@ -135,7 +165,7 @@ def main(argv):
     )
 
     # Initialize model and trainer
-    model = MedSynthGANModule(lr=args.learning_rate)
+    model = MedSynthGANModule(lr=args.learning_rate, lr_d=args.learning_rate_discriminator, lambda_grad=args.lambda_grad)
 
     # Inference
     inference_callback = VolumeInferenceCallback(
@@ -150,11 +180,15 @@ def main(argv):
         devices=1,
         precision="16-mixed",
         callbacks=[
-            ModelCheckpoint(save_top_k=2, monitor="loss_G"),
-            LearningRateMonitor("epoch"),
+            CustomProgressBar(),
+            #RichProgressBar(force_terminal=True),
+            # LearningRateMonitor("epoch"),
             inference_callback
         ],
     )
+
+    trainer.logger._log_graph = True  # If True, we plot the computation graph in tensorboard
+    trainer.logger._default_hp_metric = None  # Optional logging argument that we don't need
 
     # Train the model
     trainer.fit(model, train_dataloader)

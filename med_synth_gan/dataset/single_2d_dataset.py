@@ -3,7 +3,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from PIL import Image
 
-from dataset.utils import contrast_transform
+from med_synth_gan.dataset.utils import contrast_transform
 
 class SingleVolume2DDataset(Dataset):
     """
