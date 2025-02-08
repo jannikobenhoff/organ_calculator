@@ -3,7 +3,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from PIL import Image
 
-from med_synth_gan.dataset.utils import contrast_transform
+from med_synth_gan.dataset.utils import contrast_transform_ct
 
 class SingleVolume2DDataset(Dataset):
     """
@@ -18,7 +18,7 @@ class SingleVolume2DDataset(Dataset):
         :param apply_contrast_norm: If True, applies contrast normalization [-200, 500] → [-1, 1].
         """
         super().__init__()
-        self.transform = contrast_transform
+        self.transform = contrast_transform_ct
         self.slice_axis = slice_axis
 
         # Load 3D volume
