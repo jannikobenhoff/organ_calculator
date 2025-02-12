@@ -15,7 +15,7 @@ class VolumeInferenceCallback(Callback):
         os.makedirs(output_dir, exist_ok=True)
 
     def on_train_epoch_end(self, trainer, pl_module):
-        if (trainer.current_epoch + 1) % 2 == 0:  # Run every 2 epochs
+        if (trainer.current_epoch + 1) % 1 == 0:  # Run every 1 epochs
             # Create directories for this epoch
             epoch_dir = os.path.join(self.output_dir, f"epoch_{trainer.current_epoch}")
             fake_mri_dir = os.path.join(epoch_dir, "fake_mri_slices")

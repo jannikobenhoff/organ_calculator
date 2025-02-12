@@ -12,9 +12,12 @@ from med_synth_gan.inference.inference import VolumeInferenceCallback
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import torchvision.utils as vutils
 import os
+import numpy as np
+import torch.nn.functional as F
+
 
 class MedSynthGANModule(pl.LightningModule):
-    def __init__(self, lr=1e-4, lr_d=3e-4, lambda_grad=0):
+    def __init__(self, lr, lr_d, lambda_grad):
         super().__init__()
         self.automatic_optimization = False
         self.lr = lr
@@ -47,6 +50,9 @@ class MedSynthGANModule(pl.LightningModule):
         # Train Generator
         opt_g.zero_grad()
         fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
+
+        # loss_histogram = self.histogram_loss(fake_mri, real_mri) * 0.1
+
         pred_fake_mri = self.D_mri(fake_mri)
         loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
         loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
@@ -74,6 +80,7 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
             self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
             self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
+            # self.log('hist_loss', loss_histogram, prog_bar=True)
 
             vutils.save_image(
                 real_mri,
@@ -89,6 +96,44 @@ class MedSynthGANModule(pl.LightningModule):
         opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
 
         return [opt_g, opt_d], []
+
+    def histogram_loss(self, generated_image, real_image):
+        """Computes KL divergence between generated and expected histogram."""
+        gen_hist, _ = self.compute_normalized_histogram(generated_image)
+        expected_hist, _ = self.compute_normalized_histogram(real_image)
+
+        # Re-normalize histograms
+        gen_hist = gen_hist / gen_hist.sum()
+        expected_hist = expected_hist / expected_hist.sum()
+
+        # Avoid log(0) issues
+        gen_hist = torch.clamp(gen_hist, min=1e-8)
+        expected_hist = torch.clamp(expected_hist, min=1e-8)
+
+        # Compute KL divergence
+        loss = F.kl_div(gen_hist.log(), expected_hist, reduction="batchmean")  # Expect p log(p/q)
+
+        return loss
+
+    def compute_normalized_histogram(self, tensor, bins=11, range_min=0, range_max=1):
+        """
+        Compute a normalized histogram from a tensor.
+        - Bins: Number of bins to use (default 11)
+        - range_min, range_max: Value range (default [0,1] for normalized MRI)
+        """
+        device = tensor.device  # Get the device before converting to NumPy
+        tensor = tensor.detach().cpu().numpy().flatten()  # Convert to NumPy
+
+        # Compute histogram
+        hist, bin_edges = np.histogram(tensor, bins=bins, range=(range_min, range_max))
+
+        # Normalize to sum to 1 (avoid division by zero)
+        hist = hist.astype(np.float32)
+        hist_sum = hist.sum()
+        if hist_sum > 0:
+            hist /= hist_sum  # Normalize
+
+        return torch.tensor(hist, dtype=torch.float32, device=device), bin_edges  # Assign back to the correct device
 
 
 class CustomProgressBar(TQDMProgressBar):
@@ -111,6 +156,7 @@ class CustomProgressBar(TQDMProgressBar):
             "sf_min": items.get("scalar_field_min", ""),
             "sf_max": items.get("scalar_field_max", ""),
             "tv_loss": items.get("tv_loss", ""),
+            #"hist_loss": items.get("hist_loss", ""),
         }
 
 def collate_fn(batch):
@@ -140,21 +186,21 @@ def parse_args(argv):
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=0,  #1e-6
+        default=1e-6,  #1e-6
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-4,
+        default=5e-6,
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=5e-5,
+        default=1e-6,
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -174,6 +220,8 @@ def main(argv):
         mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/imagesTr/",
         slice_axis=2
     )
+
+    print("Finished loading {} training samples".format(len(train_dataset)), flush=True)
 
     train_dataloader = DataLoader(
         train_dataset,
@@ -204,8 +252,8 @@ def main(argv):
         ],
     )
 
-    trainer.logger._log_graph = True  # If True, we plot the computation graph in tensorboard
-    trainer.logger._default_hp_metric = None  # Optional logging argument that we don't need
+    # trainer.logger._log_graph = True  # If True, we plot the computation graph in tensorboard
+    # trainer.logger._default_hp_metric = None  # Optional logging argument that we don't need
 
     # Train the model
     trainer.fit(model, train_dataloader)
