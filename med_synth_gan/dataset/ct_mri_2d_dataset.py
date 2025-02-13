@@ -159,7 +159,6 @@ class CtMri2DDataset2(Dataset):
         self.mri_vol_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
 
         self.transform_ct = contrast_transform_ct
-        # self.transform_mri = normalize_mri
 
         self.slice_axis = slice_axis
 
@@ -170,7 +169,7 @@ class CtMri2DDataset2(Dataset):
         # Ensure datasets match in length for unpaired training
         self.dataset_len = max(len(self.ct_slices), len(self.mri_slices))
 
-    def _load_slices(self, volume_paths, is_ct=False):
+    def _load_slices(self, volume_paths):
         """
         Loads all slices from the provided NIfTI volumes and applies transformation if it is a CT scan.
         """
@@ -181,13 +180,6 @@ class CtMri2DDataset2(Dataset):
             num_slices = vol.shape[self.slice_axis]
             for s in range(num_slices):
                 slice_data = self._get_slice(vol, s)
-                # img = Image.fromarray(slice_data, mode='F')
-                #
-                # # Apply CT transform
-                # if is_ct:
-                #     slice_data = self.transform_ct(img)
-                # else:
-                #     slice_data = img
                 slices.append(slice_data)
         return slices
 

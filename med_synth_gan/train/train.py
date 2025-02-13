@@ -33,7 +33,7 @@ class MedSynthGANModule(pl.LightningModule):
         self.D_ct = Discriminator()
 
         # Loss functions
-        self.criterion_GAN = nn.MSELoss()
+        self.criterion_GAN = nn.BCEWithLogitsLoss()  # nn.MSELoss()
         self.criterion_grad = Grad(penalty='l1')
 
     def forward(self, ct_image):
@@ -51,8 +51,6 @@ class MedSynthGANModule(pl.LightningModule):
         opt_g.zero_grad()
         fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
 
-        # loss_histogram = self.histogram_loss(fake_mri, real_mri) * 0.1
-
         pred_fake_mri = self.D_mri(fake_mri)
         loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
         loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
@@ -66,8 +64,10 @@ class MedSynthGANModule(pl.LightningModule):
         fake_mri, _ = self.G_ct2mri(real_ct)
         pred_real_mri = self.D_mri(real_mri)
         loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+
         pred_fake_mri = self.D_mri(fake_mri.detach())
         loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
+
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         self.manual_backward(loss_D)
         #self.clip_gradients(opt_d, gradient_clip_val=0.5, gradient_clip_algorithm="norm")
@@ -82,59 +82,26 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
             # self.log('hist_loss', loss_histogram, prog_bar=True)
 
-            vutils.save_image(
-                real_mri,
-                f"mri_train_slice{batch_idx}.png",
-                normalize=True
-            )
+            # vutils.save_image(
+            #     real_mri,
+            #     f"mri_train_slice{batch_idx}.png",
+            #     normalize=True
+            # )
 
     def configure_optimizers(self):
+        # opt_g = torch.optim.AdamW(
+        #     list(self.G_ct2mri.parameters()) + list(self.G_mri2ct.parameters()),
+        #     lr=self.lr, betas=(0.9, 0.95), weight_decay=0.01
+        # )
+        # opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.01)
+
         opt_g = torch.optim.Adam(
             list(self.G_ct2mri.parameters()) + list(self.G_mri2ct.parameters()),
-            lr=self.lr, betas=(0.5, 0.999)
+            lr=self.lr, betas=(0.5, 0.999)#, weight_decay=0.01
         )
-        opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
+        opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))#, weight_decay=0.01)
 
         return [opt_g, opt_d], []
-
-    def histogram_loss(self, generated_image, real_image):
-        """Computes KL divergence between generated and expected histogram."""
-        gen_hist, _ = self.compute_normalized_histogram(generated_image)
-        expected_hist, _ = self.compute_normalized_histogram(real_image)
-
-        # Re-normalize histograms
-        gen_hist = gen_hist / gen_hist.sum()
-        expected_hist = expected_hist / expected_hist.sum()
-
-        # Avoid log(0) issues
-        gen_hist = torch.clamp(gen_hist, min=1e-8)
-        expected_hist = torch.clamp(expected_hist, min=1e-8)
-
-        # Compute KL divergence
-        loss = F.kl_div(gen_hist.log(), expected_hist, reduction="batchmean")  # Expect p log(p/q)
-
-        return loss
-
-    def compute_normalized_histogram(self, tensor, bins=11, range_min=0, range_max=1):
-        """
-        Compute a normalized histogram from a tensor.
-        - Bins: Number of bins to use (default 11)
-        - range_min, range_max: Value range (default [0,1] for normalized MRI)
-        """
-        device = tensor.device  # Get the device before converting to NumPy
-        tensor = tensor.detach().cpu().numpy().flatten()  # Convert to NumPy
-
-        # Compute histogram
-        hist, bin_edges = np.histogram(tensor, bins=bins, range=(range_min, range_max))
-
-        # Normalize to sum to 1 (avoid division by zero)
-        hist = hist.astype(np.float32)
-        hist_sum = hist.sum()
-        if hist_sum > 0:
-            hist /= hist_sum  # Normalize
-
-        return torch.tensor(hist, dtype=torch.float32, device=device), bin_edges  # Assign back to the correct device
-
 
 class CustomProgressBar(TQDMProgressBar):
     def __init__(self):
@@ -148,15 +115,12 @@ class CustomProgressBar(TQDMProgressBar):
     def get_metrics(self, *args, **kwargs):
         items = super().get_metrics(*args, **kwargs)
         return {
-            "epoch": items.get("epoch", ""),
-            "batch": items.get("step", ""),
             "loss_G": items.get("loss_G", ""),
             "loss_D": items.get("loss_D", ""),
             "sf_mean": items.get("scalar_field_mean", ""),
             "sf_min": items.get("scalar_field_min", ""),
             "sf_max": items.get("scalar_field_max", ""),
             "tv_loss": items.get("tv_loss", ""),
-            #"hist_loss": items.get("hist_loss", ""),
         }
 
 def collate_fn(batch):
@@ -186,21 +150,21 @@ def parse_args(argv):
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=1e-6,  #1e-6
+        default=0, # 1e-6
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=5e-6,
+        default=1e-4,
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-6,
+        default=1e-5, # should be larger than Generator for MSE
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -215,14 +179,27 @@ def main(argv):
     print("Starting MedSynthGAN training with args: {}".format(args), flush=True)
 
     # Dataset and DataLoader
+    stored_dataset_path = 'stored_train_dataset.pt'
+
+    # if os.path.exists(stored_dataset_path):
+    #     # Load the stored dataset
+    #     train_dataset = torch.load(stored_dataset_path)
+    #     print("Loading dataset from stored file")
+    # else:
+    #     # Load dataset from scratch
+    #     print("No stored dataset found. Loading from scratch...")
     train_dataset = CtMri2DDataset(
         ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
         mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/imagesTr/",
         slice_axis=2
     )
+        # Save for future use
+        # torch.save(train_dataset, stored_dataset_path)
+        # print("Dataset saved for future use")
 
     print("Finished loading {} training samples".format(len(train_dataset)), flush=True)
 
+    # Create the DataLoader
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
