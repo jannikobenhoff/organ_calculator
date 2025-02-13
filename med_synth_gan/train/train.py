@@ -89,17 +89,17 @@ class MedSynthGANModule(pl.LightningModule):
             # )
 
     def configure_optimizers(self):
-        # opt_g = torch.optim.AdamW(
-        #     list(self.G_ct2mri.parameters()) + list(self.G_mri2ct.parameters()),
-        #     lr=self.lr, betas=(0.9, 0.95), weight_decay=0.01
-        # )
-        # opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.01)
-
-        opt_g = torch.optim.Adam(
+        opt_g = torch.optim.AdamW(
             list(self.G_ct2mri.parameters()) + list(self.G_mri2ct.parameters()),
-            lr=self.lr, betas=(0.5, 0.999)#, weight_decay=0.01
+            lr=self.lr, betas=(0.9, 0.95), weight_decay=0.01
         )
-        opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))#, weight_decay=0.01)
+        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.01)
+
+        # opt_g = torch.optim.Adam(
+        #     list(self.G_ct2mri.parameters()) + list(self.G_mri2ct.parameters()),
+        #     lr=self.lr, betas=(0.5, 0.999)#, weight_decay=0.01
+        # )
+        # opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))#, weight_decay=0.01)
 
         return [opt_g, opt_d], []
 
@@ -120,7 +120,7 @@ class CustomProgressBar(TQDMProgressBar):
             "sf_mean": items.get("scalar_field_mean", ""),
             "sf_min": items.get("scalar_field_min", ""),
             "sf_max": items.get("scalar_field_max", ""),
-            "tv_loss": items.get("tv_loss", ""),
+            #"tv_loss": items.get("tv_loss", ""),
         }
 
 def collate_fn(batch):
@@ -157,14 +157,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-4,
+        default=1e-5,
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-5, # should be larger than Generator for MSE
+        default=1e-6, # should be larger than Generator for MSE
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -205,7 +205,9 @@ def main(argv):
         batch_size=args.batch_size,
         num_workers=4,
         shuffle=True,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        pin_memory=True,
+        prefetch_factor=2
     )
 
     # Initialize model and trainer
