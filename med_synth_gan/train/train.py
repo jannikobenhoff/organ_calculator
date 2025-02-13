@@ -33,7 +33,7 @@ class MedSynthGANModule(pl.LightningModule):
         self.D_ct = Discriminator()
 
         # Loss functions
-        self.criterion_GAN = nn.BCEWithLogitsLoss()  # nn.MSELoss()
+        self.criterion_GAN = nn.MSELoss()  # nn.MSELoss()
         self.criterion_grad = Grad(penalty='l1')
 
     def forward(self, ct_image):
@@ -53,8 +53,8 @@ class MedSynthGANModule(pl.LightningModule):
 
         pred_fake_mri = self.D_mri(fake_mri)
         loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
-        loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
-        loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
+        #loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
+        loss_G = loss_GAN_ct2mri #+ loss_grad_ct2mri
         self.manual_backward(loss_G)
         #self.clip_gradients(opt_g, gradient_clip_val=0.5, gradient_clip_algorithm="norm")
         opt_g.step()
@@ -79,27 +79,27 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
             self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
             self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
-            self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
+            #self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
             # self.log('hist_loss', loss_histogram, prog_bar=True)
 
-            # vutils.save_image(
-            #     real_mri,
-            #     f"mri_train_slice{batch_idx}.png",
-            #     normalize=True
-            # )
+            vutils.save_image(
+                real_mri,
+                f"mri_train_slice{batch_idx}.png",
+                normalize=True
+            )
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
-            list(self.G_ct2mri.parameters()) + list(self.G_mri2ct.parameters()),
+            self.G_ct2mri.parameters(),
             lr=self.lr, betas=(0.9, 0.95), weight_decay=0.01
         )
         opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.01)
 
         # opt_g = torch.optim.Adam(
-        #     list(self.G_ct2mri.parameters()) + list(self.G_mri2ct.parameters()),
-        #     lr=self.lr, betas=(0.5, 0.999)#, weight_decay=0.01
+        #     self.G_ct2mri.parameters(),
+        #     lr=self.lr, betas=(0.5, 0.999)
         # )
-        # opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))#, weight_decay=0.01)
+        # opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
 
         return [opt_g, opt_d], []
 
@@ -164,7 +164,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-6, # should be larger than Generator for MSE
+        default=5e-5, # should be larger than Generator for MSE
         type=float,
         help="Learning rate (default: %(default)s)",
     )
