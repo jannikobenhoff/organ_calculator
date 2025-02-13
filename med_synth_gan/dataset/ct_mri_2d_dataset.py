@@ -21,7 +21,7 @@ import torchvision.transforms as T
 import torch
 
 
-class CtMri2DDataset2(Dataset):
+class CtMri2DDataset(Dataset):
     """
     Loads a list of 3D NIfTI volumes (CT and MRI), extracts 2D slices,
     and returns them as single images for training.
@@ -141,7 +141,7 @@ class CtMri2DDataset2(Dataset):
         return ct_slice, mri_slice
 
 
-class CtMri2DDataset(Dataset):
+class CtMri2DDataset2(Dataset):
     """
     Loads a list of 3D NIfTI volumes (CT and MRI), extracts 2D slices,
     and returns them as single images for training.
