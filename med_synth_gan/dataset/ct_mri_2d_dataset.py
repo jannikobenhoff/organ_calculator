@@ -38,7 +38,7 @@ class CtMri2DDataset(Dataset):
         # Pre-calculate indices and p99 values
         self.ct_slice_indices = self._calculate_slice_indices(self.ct_volumes)
         self.mri_slice_indices = self._calculate_slice_indices(self.mri_volumes)
-        self.mri_p99_values = {i: np.percentile(vol, 90) for i, vol in enumerate(self.mri_volumes)}
+        self.mri_p99_values = {slice_i: np.percentile(vol, 90) for slice_i, vol in enumerate(self.mri_volumes)}
 
         self.dataset_len = max(len(self.ct_slice_indices), len(self.mri_slice_indices))
 
