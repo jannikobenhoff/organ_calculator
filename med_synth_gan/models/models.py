@@ -47,7 +47,7 @@ class UNet(nn.Module):
         scale_field = self.final(x0_1)
         scale_field *= 0.1
 
-        # scale_field = scale_field + 1
+        scale_field = scale_field + 1
 
         # scale_field = scale_field - scale_field.mean() + 1
         # scale_field = torch.clamp(scale_field, 0.5, 1.5)

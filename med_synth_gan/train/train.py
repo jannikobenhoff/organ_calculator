@@ -82,9 +82,15 @@ class MedSynthGANModule(pl.LightningModule):
             #self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
             # self.log('hist_loss', loss_histogram, prog_bar=True)
 
+        if batch_idx % 500 == 0:
             vutils.save_image(
                 real_mri,
                 f"mri_train_slice{batch_idx}.png",
+                normalize=True
+            )
+            vutils.save_image(
+                real_ct,
+                f"ct_train_slice{batch_idx}.png",
                 normalize=True
             )
 
@@ -136,7 +142,7 @@ def parse_args(argv):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=24,
+        default=8,
         type=int,
         help="Batch size for training",
     )
