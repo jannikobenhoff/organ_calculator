@@ -11,15 +11,6 @@ import torch
 from torch.utils.data import DataLoader
 import torchvision.utils as vutils
 
-import glob
-import os
-import numpy as np
-import nibabel as nib
-from PIL import Image
-from torch.utils.data import Dataset
-import torchvision.transforms as T
-import torch
-
 
 class CtMri2DDataset(Dataset):
     def __init__(self, ct_dir, mri_dir, slice_axis=2, cache_dir=None):
@@ -38,15 +29,19 @@ class CtMri2DDataset(Dataset):
         # Pre-calculate indices and p99 values
         self.ct_slice_indices = self._calculate_slice_indices(self.ct_volumes)
         self.mri_slice_indices = self._calculate_slice_indices(self.mri_volumes)
-        self.mri_p99_values = {slice_i: np.percentile(vol, 90) for slice_i, vol in enumerate(self.mri_volumes)}
+
+        # Calculate both min and max values for better normalization
+        self.mri_stats = {slice_i: {
+            'p99': np.percentile(vol, 99),
+            'p1': np.percentile(vol, 1)
+        } for slice_i, vol in enumerate(self.mri_volumes)}
 
         self.dataset_len = max(len(self.ct_slice_indices), len(self.mri_slice_indices))
 
-        # Create transforms once
+        # Modified MRI transform with improved normalization
         self.contrast_transform_mri = T.Compose([
             T.Resize((256, 256)),
             T.ToTensor(),
-            T.Lambda(lambda x: torch.clamp(x, min=0)),
         ])
 
     def _calculate_slice_indices(self, volumes):
@@ -63,29 +58,100 @@ class CtMri2DDataset(Dataset):
             return volume[:, slice_idx, :]
         return volume[:, :, slice_idx]
 
-    def __len__(self):
-        return self.dataset_len
-
     def __getitem__(self, idx):
-        # Get CT slice
+        # CT processing remains the same
         ct_vol_idx, ct_slice_idx = self.ct_slice_indices[idx % len(self.ct_slice_indices)]
         ct_slice = self._get_slice(self.ct_volumes[ct_vol_idx], ct_slice_idx)
         ct_img = Image.fromarray(ct_slice, mode='F')
         ct_tensor = contrast_transform_ct(ct_img)
 
-        # Get MRI slice
+        # Modified MRI processing
         mri_vol_idx, mri_slice_idx = self.mri_slice_indices[idx % len(self.mri_slice_indices)]
         mri_slice = self._get_slice(self.mri_volumes[mri_vol_idx], mri_slice_idx)
         mri_img = Image.fromarray(mri_slice, mode='F')
 
-        # Apply MRI transformations
+        # Apply MRI transformations with improved normalization
         mri_tensor = self.contrast_transform_mri(mri_img)
-        mri_tensor = mri_tensor / self.mri_p99_values[mri_vol_idx]
+
+        # Normalize using both lower and upper bounds
+        p99 = self.mri_stats[mri_vol_idx]['p99']
+        p1 = self.mri_stats[mri_vol_idx]['p1']
+
+        # Clip and normalize
+        mri_tensor = torch.clamp(mri_tensor, min=p1, max=p99)
+        mri_tensor = (mri_tensor - p1) / (p99 - p1)  # Normalize to [0, 1]
 
         if mri_tensor.mean() < 0.01:
             return None
 
         return ct_tensor, mri_tensor
+
+
+# class CtMri2DDataset(Dataset):
+#     def __init__(self, ct_dir, mri_dir, slice_axis=2, cache_dir=None):
+#         super().__init__()
+#         self.ct_vol_paths = sorted(glob.glob(os.path.join(ct_dir, '*.nii*')))
+#         self.mri_vol_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
+#         self.slice_axis = slice_axis
+#         self.cache_dir = cache_dir
+#
+#         # Use memory mapping for NIfTI files
+#         self.ct_volumes = [nib.load(path).get_fdata(dtype=np.float32, caching='unchanged')
+#                            for path in self.ct_vol_paths]
+#         self.mri_volumes = [nib.load(path).get_fdata(dtype=np.float32, caching='unchanged')
+#                             for path in self.mri_vol_paths]
+#
+#         # Pre-calculate indices and p99 values
+#         self.ct_slice_indices = self._calculate_slice_indices(self.ct_volumes)
+#         self.mri_slice_indices = self._calculate_slice_indices(self.mri_volumes)
+#         self.mri_p99_values = {slice_i: np.percentile(vol, 90) for slice_i, vol in enumerate(self.mri_volumes)}
+#
+#         self.dataset_len = max(len(self.ct_slice_indices), len(self.mri_slice_indices))
+#
+#         # Create transforms once
+#         self.contrast_transform_mri = T.Compose([
+#             T.Resize((256, 256)),
+#             T.ToTensor(),
+#             T.Lambda(lambda x: torch.clamp(x, min=0)),
+#         ])
+#
+#     def _calculate_slice_indices(self, volumes):
+#         indices = []
+#         for vol_idx, vol in enumerate(volumes):
+#             num_slices = vol.shape[self.slice_axis]
+#             indices.extend([(vol_idx, s) for s in range(num_slices)])
+#         return indices
+#
+#     def _get_slice(self, volume, slice_idx):
+#         if self.slice_axis == 0:
+#             return volume[slice_idx, :, :]
+#         elif self.slice_axis == 1:
+#             return volume[:, slice_idx, :]
+#         return volume[:, :, slice_idx]
+#
+#     def __len__(self):
+#         return self.dataset_len
+#
+#     def __getitem__(self, idx):
+#         # Get CT slice
+#         ct_vol_idx, ct_slice_idx = self.ct_slice_indices[idx % len(self.ct_slice_indices)]
+#         ct_slice = self._get_slice(self.ct_volumes[ct_vol_idx], ct_slice_idx)
+#         ct_img = Image.fromarray(ct_slice, mode='F')
+#         ct_tensor = contrast_transform_ct(ct_img)
+#
+#         # Get MRI slice
+#         mri_vol_idx, mri_slice_idx = self.mri_slice_indices[idx % len(self.mri_slice_indices)]
+#         mri_slice = self._get_slice(self.mri_volumes[mri_vol_idx], mri_slice_idx)
+#         mri_img = Image.fromarray(mri_slice, mode='F')
+#
+#         # Apply MRI transformations
+#         mri_tensor = self.contrast_transform_mri(mri_img)
+#         mri_tensor = mri_tensor / self.mri_p99_values[mri_vol_idx]
+#
+#         if mri_tensor.mean() < 0.01:
+#             return None
+#
+#         return ct_tensor, mri_tensor
 #
 #
 # class CtMri2DDataset3(Dataset):
