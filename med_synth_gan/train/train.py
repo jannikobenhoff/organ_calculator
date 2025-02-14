@@ -33,7 +33,7 @@ class MedSynthGANModule(pl.LightningModule):
         self.D_ct = Discriminator()
 
         # Loss functions
-        self.criterion_GAN = nn.MSELoss()  # nn.MSELoss()
+        self.criterion_GAN = nn.BCEWithLogitsLoss()  # nn.MSELoss()
         self.criterion_grad = Grad(penalty='l1')
 
     def forward(self, ct_image):
@@ -142,7 +142,7 @@ def parse_args(argv):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=8,
+        default=24,
         type=int,
         help="Batch size for training",
     )
@@ -163,14 +163,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5,
+        default=2e-5,
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=5e-5, # should be larger than Generator for MSE
+        default=1e-5, # should be larger than Generator for MSE
         type=float,
         help="Learning rate (default: %(default)s)",
     )
