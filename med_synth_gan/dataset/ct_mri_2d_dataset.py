@@ -86,6 +86,8 @@ class CtMri2DDataset(Dataset):
 
         return ct_tensor, mri_tensor
 
+    def __len__(self):
+        return self.dataset_len
 
 # class CtMri2DDataset(Dataset):
 #     def __init__(self, ct_dir, mri_dir, slice_axis=2, cache_dir=None):
