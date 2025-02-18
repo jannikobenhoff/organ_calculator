@@ -33,7 +33,7 @@ class MedSynthGANModule(pl.LightningModule):
         self.D_ct = Discriminator()
 
         # Loss functions
-        self.criterion_GAN = nn.BCEWithLogitsLoss()  # nn.MSELoss()
+        self.criterion_GAN = nn.MSELoss()  # nn.BCEWithLogitsLoss()
         self.criterion_grad = Grad(penalty='l1')
 
     def forward(self, ct_image):
@@ -82,17 +82,17 @@ class MedSynthGANModule(pl.LightningModule):
             #self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
             # self.log('hist_loss', loss_histogram, prog_bar=True)
 
-        if batch_idx % 500 == 0:
-            vutils.save_image(
-                real_mri,
-                f"mri_train_slice{batch_idx}.png",
-                normalize=True
-            )
-            vutils.save_image(
-                real_ct,
-                f"ct_train_slice{batch_idx}.png",
-                normalize=True
-            )
+        # if batch_idx % 500 == 0:
+        #     vutils.save_image(
+        #         real_mri,
+        #         f"mri_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
+        #     vutils.save_image(
+        #         real_ct,
+        #         f"ct_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
@@ -163,14 +163,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5,
+        default=1e-6,
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-7, # should be larger than Generator for MSE
+        default=1e-5, # should be larger than Generator for MSE
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -230,7 +230,7 @@ def main(argv):
         max_epochs=args.epochs,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1,
-        precision="16-mixed",
+        # precision="16-mixed",
         callbacks=[
             CustomProgressBar(),
             inference_callback
