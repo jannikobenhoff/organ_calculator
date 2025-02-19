@@ -178,7 +178,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=4e-5, # should be larger than Generator for MSE
+        default=5e-5, # should be larger than Generator for MSE
         type=float,
         help="Learning rate (default: %(default)s)",
     )
