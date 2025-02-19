@@ -43,6 +43,7 @@ class VolumeInferenceCallback(Callback):
                 num_workers=0
             )
 
+            print(f"Starting inference on {self.test_volume_path}")
             # Perform inference
             pl_module.eval()
             with torch.no_grad():

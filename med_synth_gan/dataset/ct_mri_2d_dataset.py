@@ -75,9 +75,6 @@ class CtMri2DDataset(Dataset):
         mri_vol_idx, mri_slice_idx = self.mri_slice_indices[idx % len(self.mri_slice_indices)]
         mri_slice = self._get_slice(self.mri_volumes[mri_vol_idx], mri_slice_idx)
         mri_img = Image.fromarray(mri_slice, mode='F')
-        mri_tensor = contrast_transform_mri(mri_img)
-
-        return ct_tensor, mri_tensor
 
         # Apply MRI transformations with improved normalization
         mri_tensor = self.contrast_transform_mri(mri_img)
