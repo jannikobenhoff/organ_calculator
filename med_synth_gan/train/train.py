@@ -55,7 +55,7 @@ class MedSynthGANModule(pl.LightningModule):
         # Train Generator every 5 steps
         #if batch_idx % 5 == 0:
         opt_g.zero_grad()
-        fake_mri, scale_field_ct2mri, offset_field = self.G_ct2mri(real_ct)
+        fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
 
         pred_fake_mri = self.D_mri(fake_mri)
         loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
@@ -66,7 +66,7 @@ class MedSynthGANModule(pl.LightningModule):
 
         # Train Discriminator
         opt_d.zero_grad()
-        fake_mri, _, _ = self.G_ct2mri(real_ct)
+        fake_mri, _ = self.G_ct2mri(real_ct)
         pred_real_mri = self.D_mri(real_mri)
         if self.use_bce:
             real_labels_smooth = torch.full_like(pred_real_mri, 0.9)  # instead of 1.0
@@ -88,7 +88,7 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
             self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
             self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
-            self.log('offset_field_mean', offset_field.mean(), prog_bar=True)
+            #self.log('offset_field_mean', offset_field.mean(), prog_bar=True)
 
         # if batch_idx % 2500 == 0:
         #     vutils.save_image(
@@ -134,7 +134,7 @@ class CustomProgressBar(TQDMProgressBar):
             "sf_mean": items.get("scalar_field_mean", ""),
             "sf_min": items.get("scalar_field_min", ""),
             "sf_max": items.get("scalar_field_max", ""),
-            "of_mean": items.get("offset_field_mean", ""),
+            #"of_mean": items.get("offset_field_mean", ""),
         }
 
 def collate_fn(batch):

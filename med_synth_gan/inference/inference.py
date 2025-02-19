@@ -45,7 +45,7 @@ class VolumeInferenceCallback(Callback):
                     ct_slice = ct_slice.to(pl_module.device)
 
                     # Generate fake MRI and scalar field
-                    fake_mri, scalar_field, _ = pl_module.G_ct2mri(ct_slice)
+                    fake_mri, scalar_field = pl_module.G_ct2mri(ct_slice)
 
                     # Save slices as PNG
                     vutils.save_image(
