@@ -13,18 +13,19 @@ class UNet(nn.Module):
         self.pool = nn.MaxPool2d(2)
         self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 
-        self.conv0_0 = VGGBlock(input_channels, nb_filter[0], nb_filter[0])
-        self.conv1_0 = VGGBlock(nb_filter[0], nb_filter[1], nb_filter[1],stride=2)
-        self.conv2_0 = VGGBlock(nb_filter[1], nb_filter[2], nb_filter[2],stride=2)
-        self.conv3_0 = VGGBlock(nb_filter[2], nb_filter[3], nb_filter[3],stride=2)
-        self.conv4_0 = VGGBlock(nb_filter[3], nb_filter[4], nb_filter[4],stride=2)
-        self.conv5_0 = VGGBlock(nb_filter[4], nb_filter[5], nb_filter[5],stride=2)
+        self.input_conv = nn.Conv2d(self.input_channels, self.nb_filter[0], kernel_size=3, stride=1, padding=1)
+        self.conv0_0 = ResidualBlockWithStride(nb_filter[0], nb_filter[0])
+        self.conv1_0 = ResidualBlockWithStride(nb_filter[0],  nb_filter[1],stride=2)
+        self.conv2_0 = ResidualBlockWithStride(nb_filter[1], nb_filter[2],stride=2)
+        self.conv3_0 = ResidualBlockWithStride(nb_filter[2],  nb_filter[3],stride=2)
+        self.conv4_0 = ResidualBlockWithStride(nb_filter[3],  nb_filter[4],stride=2)
+        self.conv5_0 = ResidualBlockWithStride(nb_filter[4], nb_filter[5],stride=2)
 
-        self.conv4_1 = VGGBlock(nb_filter[4]+nb_filter[5], nb_filter[4], nb_filter[4], dropout_prob=0.4)
-        self.conv3_1 = VGGBlock(nb_filter[3]+nb_filter[4], nb_filter[3], nb_filter[3], dropout_prob=0.4)
-        self.conv2_1 = VGGBlock(nb_filter[2]+nb_filter[3], nb_filter[2], nb_filter[2])
-        self.conv1_1 = VGGBlock(nb_filter[1]+nb_filter[2], nb_filter[1], nb_filter[1])
-        self.conv0_1 = VGGBlock(nb_filter[0]+nb_filter[1], nb_filter[0], nb_filter[0])
+        self.conv4_1 = ResidualBlockWithStride(nb_filter[4]+nb_filter[5],  nb_filter[4])
+        self.conv3_1 = ResidualBlockWithStride(nb_filter[3]+nb_filter[4],  nb_filter[3])
+        self.conv2_1 = ResidualBlockWithStride(nb_filter[2]+nb_filter[3], nb_filter[2])
+        self.conv1_1 = ResidualBlockWithStride(nb_filter[1]+nb_filter[2],  nb_filter[1])
+        self.conv0_1 = ResidualBlockWithStride(nb_filter[0]+nb_filter[1],  nb_filter[0])
 
         
         self.final = nn.Conv2d(nb_filter[0], output_channels, kernel_size=1)
@@ -33,7 +34,8 @@ class UNet(nn.Module):
         #torch.nn.init.constant_(self.final.bias[1], 0.0)  # offset channel -> 0
 
     def forward(self, input):
-        x0_0 = self.conv0_0(input)
+        x_input = self.input_conv(input)
+        x0_0 = self.conv0_0(x_input)
         x1_0 = self.conv1_0(x0_0)
         x2_0 = self.conv2_0(x1_0)
         x3_0 = self.conv3_0(x2_0)
@@ -47,7 +49,7 @@ class UNet(nn.Module):
         x0_1 = self.conv0_1(torch.cat([x0_0, self.up(x1_1)], 1))
  
         scale_field = self.final(x0_1)
-        scale_field *= 0.1
+        # scale_field *= 0.1
 
         scale_field = scale_field + 1
 
@@ -76,21 +78,58 @@ class VGGBlock(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels, middle_channels, 3, padding=1,stride=stride)
         self.bn1 = nn.InstanceNorm2d(middle_channels,affine=True)
-        self.dropout1 = nn.Dropout(dropout_prob) if dropout_prob > 0 else nn.Identity()
+        #self.dropout1 = nn.Dropout(dropout_prob) if dropout_prob > 0 else nn.Identity()
 
         self.conv2 = nn.Conv2d(middle_channels, out_channels, 3, padding=1)
         self.bn2 = nn.InstanceNorm2d(out_channels,affine=True)
-        self.dropout2 = nn.Dropout(dropout_prob) if dropout_prob > 0 else nn.Identity()
+        #self.dropout2 = nn.Dropout(dropout_prob) if dropout_prob > 0 else nn.Identity()
 
     def forward(self, x):
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
-        out = self.dropout1(out)
+        #out = self.dropout1(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
         out = self.relu(out)
-        out = self.dropout2(out)
+        #out = self.dropout2(out)
 
+        return out
+
+class ResidualBlockWithStride(nn.Module):
+    """Residual block with a stride on the first convolution.
+    Args:
+        in_ch (int): number of input channels
+        out_ch (int): number of output channels
+        stride (int): stride value (default: 2)
+    """
+
+    def __init__(self, in_ch: int, out_ch: int, stride: int = 1):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1, stride=stride)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1, )
+        self.norm1 = nn.GroupNorm(num_groups=8, num_channels=in_ch, affine=True)
+        self.norm2 = nn.GroupNorm(num_groups=8, num_channels=out_ch, affine=True)
+
+        self.nonlin = nn.SiLU(inplace=True)
+
+        if stride != 1 or in_ch != out_ch:
+            self.skip_down = nn.Conv2d(in_ch, out_ch, kernel_size=1, padding=0, stride=stride)
+        else:
+            self.skip_down = None
+
+    def forward(self, x):
+        identity = x
+        out = self.norm1(x)
+        out = self.nonlin(out)
+        out = self.conv1(out)
+        out = self.norm2(out)
+        out = self.nonlin(out)
+        out = self.conv2(out)
+
+        if self.skip_down is not None:
+            identity = self.skip_down(x)
+
+        out += identity
         return out
