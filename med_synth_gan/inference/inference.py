@@ -39,8 +39,7 @@ class VolumeInferenceCallback(Callback):
             test_loader = DataLoader(
                 test_dataset,
                 batch_size=1,
-                shuffle=False,
-                num_workers=0
+                shuffle=False
             )
 
             print(f"Starting inference on {self.test_volume_path}")
@@ -60,11 +59,11 @@ class VolumeInferenceCallback(Callback):
                         normalize=True
                     )
 
-                    # vutils.save_image(
-                    #     ct_slice,
-                    #     os.path.join(ct_dir, f'CT_{i:04d}.png'),
-                    #     normalize=True
-                    # )
+                    vutils.save_image(
+                        ct_slice,
+                        os.path.join(ct_dir, f'CT_{i:04d}.png'),
+                        normalize=True
+                    )
 
                     # vutils.save_image(
                     #     scalar_field,
@@ -78,6 +77,6 @@ class VolumeInferenceCallback(Callback):
 
             # Assuming you have these utility functions
             png_slices_to_nifti(fake_mri_dir, output_nifti_path)
-            # png_slices_to_nifti(ct_dir, ct_output_path)
+            png_slices_to_nifti(ct_dir, ct_output_path)
 
             print(f"Epoch {trainer.current_epoch}: Saved inference results to {epoch_dir}")
