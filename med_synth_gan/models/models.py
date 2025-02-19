@@ -56,7 +56,7 @@ class UNet(nn.Module):
 
         # Channel 0 = scale, Channel 1 = offset
         scale_field = field[:, 0:1, :, :]  # shape [B,1,H,W]
-        offset_field = field[:, 1:2, :, :]  # shape [B,1,H,W]
+        offset_field = field[:, 1:2, :, :] * 0.1  # shape [B,1,H,W]
 
         # Shift scale so that 0 => 1.0 multiplication factor
         scale_field = scale_field + 1.0
