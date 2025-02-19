@@ -6,3 +6,4 @@
 *.pyc
 *.png
 /med_synth_gan.egg-info
+/.idea
