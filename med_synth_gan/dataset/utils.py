@@ -14,7 +14,12 @@ contrast_transform_ct = T.Compose([
         T.Lambda(lambda x: (x+200) / 700),
 ])
 
-
+contrast_transform_mri = T.Compose([
+        T.Resize((256, 256)),
+        T.ToTensor(),
+        T.Lambda(lambda x: torch.clamp(x, 0, 500)),
+        T.Lambda(lambda x: x / 500),
+])
 
 def normalize_mri(input_image):
         numpydata = np.asarray(input_image)

@@ -5,7 +5,7 @@ import numpy as np
 from tifffile import enumarg
 from torch.utils.data import Dataset
 from PIL import Image
-from med_synth_gan.dataset.utils import contrast_transform_ct, normalize_mri
+from med_synth_gan.dataset.utils import contrast_transform_ct, contrast_transform_mri
 import torchvision.transforms as T
 import torch
 from torch.utils.data import DataLoader
@@ -69,6 +69,9 @@ class CtMri2DDataset(Dataset):
         ct_slice = self._get_slice(self.ct_volumes[ct_vol_idx], ct_slice_idx)
         ct_img = Image.fromarray(ct_slice, mode='F')
         ct_tensor = contrast_transform_ct(ct_img)
+        mri_tensor = contrast_transform_mri(self.mri_volumes[ct_vol_idx])
+
+        return ct_tensor, mri_tensor
 
         # Modified MRI processing
         mri_vol_idx, mri_slice_idx = self.mri_slice_indices[idx % len(self.mri_slice_indices)]

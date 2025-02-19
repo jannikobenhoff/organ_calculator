@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import torchvision.utils as vutils
 from med_synth_gan.dataset.single_2d_dataset import SingleVolume2DDataset
 from med_synth_gan.inference.utils import png_slices_to_nifti
+import shutil
 
 
 class VolumeInferenceCallback(Callback):
@@ -23,7 +24,11 @@ class VolumeInferenceCallback(Callback):
             scalar_field_dir = os.path.join(epoch_dir, "scalar_field_slices")
 
             for d in [fake_mri_dir, ct_dir, scalar_field_dir]:
-                os.makedirs(d, exist_ok=True)
+                # Delete directory and all its contents if it exists
+                if os.path.exists(d):
+                    shutil.rmtree(d)
+                # Create new directory
+                os.makedirs(d)
 
             # Create dataset and dataloader for the test volume
             test_dataset = SingleVolume2DDataset(

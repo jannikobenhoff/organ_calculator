@@ -88,9 +88,9 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
             self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
             self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
-            #self.log('offset_field_mean', offset_field.mean(), prog_bar=True)
+            self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
 
-        # if batch_idx % 2500 == 0:
+        # if batch_idx % 500 == 0:
         #     vutils.save_image(
         #         real_mri,
         #         f"mri_train_slice{batch_idx}.png",
@@ -134,7 +134,7 @@ class CustomProgressBar(TQDMProgressBar):
             "sf_mean": items.get("scalar_field_mean", ""),
             "sf_min": items.get("scalar_field_min", ""),
             "sf_max": items.get("scalar_field_max", ""),
-            #"of_mean": items.get("offset_field_mean", ""),
+            "tv_loss": items.get("tv_loss", ""),
         }
 
 def collate_fn(batch):
@@ -150,7 +150,7 @@ def parse_args(argv):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=8,
+        default=1,
         type=int,
         help="Batch size for training",
     )
@@ -171,14 +171,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=5e-5,
+        default=5e-5, # 5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-4, # should be larger than Generator for MSE
+        default=1e-4, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -224,7 +224,7 @@ def main(argv):
 
     # Inference
     inference_callback = VolumeInferenceCallback(
-        test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000009_0000.nii.gz",
+        test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000008_0000.nii.gz",
         output_dir=f"inference_results_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
