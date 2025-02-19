@@ -11,14 +11,19 @@ import torch
 from torch.utils.data import DataLoader
 import torchvision.utils as vutils
 
+from med_synth_gan.inference.utils import png_slices_to_nifti
+
 
 class CtMri2DDataset(Dataset):
-    def __init__(self, ct_dir, mri_dir, slice_axis=2, cache_dir=None):
+    def __init__(self, ct_dir, mri_dir, slice_axis=2):
         super().__init__()
         self.ct_vol_paths = sorted(glob.glob(os.path.join(ct_dir, '*.nii*')))
         self.mri_vol_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
+
+        # Reduce ct data set sice to balance both
+        self.ct_vol_paths = self.ct_vol_paths[:50]
+
         self.slice_axis = slice_axis
-        self.cache_dir = cache_dir
 
         # Use memory mapping for NIfTI files
         self.ct_volumes = [nib.load(path).get_fdata(dtype=np.float32, caching='unchanged')
@@ -380,7 +385,7 @@ if __name__ == '__main__':
 
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=8,
+        batch_size=1,
         num_workers=0,
         shuffle=True
     )
@@ -394,17 +399,26 @@ if __name__ == '__main__':
         # for mm, m in enumerate(real_mri):
         #     print(f"{mm}: {m.mean():.3f}")
 
-        print(real_mri.max(), real_mri.min(), len(real_mri), real_mri.mean())
-        hist, bin_edges = compute_histogram(real_mri, bins=11, range_min=0, range_max=1.1)
-        all_count = sum(hist)
-        for ii, (count, edge) in enumerate(zip(hist, bin_edges[:-1])):
-            print(f"Bin {ii}: {edge:.2f} → {count / all_count:.2f}")
+        # print(real_mri.max(), real_mri.min(), len(real_mri), real_mri.mean())
+        # hist, bin_edges = compute_histogram(real_mri, bins=11, range_min=0, range_max=1.1)
+        # all_count = sum(hist)
+        # for ii, (count, edge) in enumerate(zip(hist, bin_edges[:-1])):
+        #     print(f"Bin {ii}: {edge:.2f} → {count / all_count:.2f}")
+        #
+        # # vutils.save_image(
+        # #     real_mri,
+        # #     f"mri_train_slice{i}.png",
+        # #     normalize=True
+        # # )
+        #
+        # if i > 3:  # Check first 5 batches only
+        #     break
 
-        # vutils.save_image(
-        #     real_mri,
-        #     f"mri_train_slice{i}.png",
-        #     normalize=True
-        # )
-
-        if i > 3:  # Check first 5 batches only
-            break
+        # Save slices as PNG
+        vutils.save_image(
+            real_mri,
+            os.path.join("fake", f"fakeMRI_{i:04d}.png"),
+            normalize=True
+        )
+    # Assuming you have these utility functions
+    png_slices_to_nifti("fake", "nif")

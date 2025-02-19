@@ -3,6 +3,7 @@ import sys
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
+from sympy import false
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
 from med_synth_gan.models.models import UNet
@@ -17,23 +18,27 @@ import torch.nn.functional as F
 
 
 class MedSynthGANModule(pl.LightningModule):
-    def __init__(self, lr, lr_d, lambda_grad):
+    def __init__(self, lr, lr_d, lambda_grad, use_bce=False):
         super().__init__()
         self.automatic_optimization = False
         self.lr = lr
         self.lr_d = lr_d
         self.lambda_grad = lambda_grad
+        self.use_bce = use_bce
 
         self.save_hyperparameters()
 
         # Models
         self.G_ct2mri = UNet()
-        self.G_mri2ct = UNet()
+        # self.G_mri2ct = UNet()
         self.D_mri = Discriminator()
-        self.D_ct = Discriminator()
+        # self.D_ct = Discriminator()
 
         # Loss functions
-        self.criterion_GAN = nn.MSELoss()  # nn.BCEWithLogitsLoss()
+        if use_bce:
+            self.criterion = nn.BCEWithLogitsLoss()
+        else:
+            self.criterion_GAN = nn.MSELoss()
         self.criterion_grad = Grad(penalty='l1')
 
     def forward(self, ct_image):
@@ -47,30 +52,34 @@ class MedSynthGANModule(pl.LightningModule):
         opt_g, opt_d = self.optimizers()
         real_ct, real_mri = batch
 
-        # Train Generator
+        # Train Generator every 5 steps
+        #if batch_idx % 5 == 0:
         opt_g.zero_grad()
-        fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
+        fake_mri, scale_field_ct2mri, offset_field = self.G_ct2mri(real_ct)
 
         pred_fake_mri = self.D_mri(fake_mri)
         loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
-        #loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
-        loss_G = loss_GAN_ct2mri #+ loss_grad_ct2mri
+        loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
+        loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
         self.manual_backward(loss_G)
-        #self.clip_gradients(opt_g, gradient_clip_val=0.5, gradient_clip_algorithm="norm")
         opt_g.step()
 
         # Train Discriminator
         opt_d.zero_grad()
-        fake_mri, _ = self.G_ct2mri(real_ct)
+        fake_mri, _, _ = self.G_ct2mri(real_ct)
         pred_real_mri = self.D_mri(real_mri)
-        loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+        if self.use_bce:
+            real_labels_smooth = torch.full_like(pred_real_mri, 0.9)  # instead of 1.0
+            loss_D_real = self.criterion_GAN(pred_real_mri, real_labels_smooth)
+        else:
+            loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+
 
         pred_fake_mri = self.D_mri(fake_mri.detach())
         loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
 
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         self.manual_backward(loss_D)
-        #self.clip_gradients(opt_d, gradient_clip_val=0.5, gradient_clip_algorithm="norm")
         opt_d.step()
 
         if batch_idx % 100 == 0:
@@ -79,10 +88,9 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
             self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
             self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
-            #self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
-            # self.log('hist_loss', loss_histogram, prog_bar=True)
+            self.log('offset_field_mean', offset_field.mean(), prog_bar=True)
 
-        # if batch_idx % 500 == 0:
+        # if batch_idx % 2500 == 0:
         #     vutils.save_image(
         #         real_mri,
         #         f"mri_train_slice{batch_idx}.png",
@@ -126,7 +134,7 @@ class CustomProgressBar(TQDMProgressBar):
             "sf_mean": items.get("scalar_field_mean", ""),
             "sf_min": items.get("scalar_field_min", ""),
             "sf_max": items.get("scalar_field_max", ""),
-            #"tv_loss": items.get("tv_loss", ""),
+            "of_mean": items.get("offset_field_mean", ""),
         }
 
 def collate_fn(batch):
@@ -142,37 +150,44 @@ def parse_args(argv):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=24,
+        default=8,
         type=int,
         help="Batch size for training",
     )
     parser.add_argument(
         "-e",
         "--epochs",
-        default=10,
+        default=15,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=0, # 1e-6
+        default=0, # 1e-5,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-6,
+        default=1e-5,
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-5, # should be larger than Generator for MSE
+        default=4e-5, # should be larger than Generator for MSE
         type=float,
         help="Learning rate (default: %(default)s)",
+    )
+    parser.add_argument(
+        "-bce",
+        "--bce",
+        default=False,
+        type=bool,
+        help="Use BCE Loss (default: %(default)s)",
     )
 
     args = parser.parse_args(argv)
@@ -184,24 +199,11 @@ def main(argv):
 
     print("Starting MedSynthGAN training with args: {}".format(args), flush=True)
 
-    # Dataset and DataLoader
-    stored_dataset_path = 'stored_train_dataset.pt'
-
-    # if os.path.exists(stored_dataset_path):
-    #     # Load the stored dataset
-    #     train_dataset = torch.load(stored_dataset_path)
-    #     print("Loading dataset from stored file")
-    # else:
-    #     # Load dataset from scratch
-    #     print("No stored dataset found. Loading from scratch...")
     train_dataset = CtMri2DDataset(
         ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
-        mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/imagesTr/",
+        mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/cleanTr/",
         slice_axis=2
     )
-        # Save for future use
-        # torch.save(train_dataset, stored_dataset_path)
-        # print("Dataset saved for future use")
 
     print("Finished loading {} training samples".format(len(train_dataset)), flush=True)
 
@@ -217,12 +219,13 @@ def main(argv):
     )
 
     # Initialize model and trainer
-    model = MedSynthGANModule(lr=args.learning_rate, lr_d=args.learning_rate_discriminator, lambda_grad=args.lambda_grad)
+    model = MedSynthGANModule(lr=args.learning_rate, lr_d=args.learning_rate_discriminator,
+                              lambda_grad=args.lambda_grad, use_bce=args.bce)
 
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000009_0000.nii.gz",
-        output_dir="inference_results"
+        output_dir=f"inference_results_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
     trainer = pl.Trainer(
@@ -230,15 +233,12 @@ def main(argv):
         max_epochs=args.epochs,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1,
-        # precision="16-mixed",
+        precision="16-mixed",
         callbacks=[
             CustomProgressBar(),
             inference_callback
         ],
     )
-
-    # trainer.logger._log_graph = True  # If True, we plot the computation graph in tensorboard
-    # trainer.logger._default_hp_metric = None  # Optional logging argument that we don't need
 
     # Train the model
     trainer.fit(model, train_dataloader)
