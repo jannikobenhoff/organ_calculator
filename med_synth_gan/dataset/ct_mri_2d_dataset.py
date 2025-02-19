@@ -26,9 +26,9 @@ class CtMri2DDataset(Dataset):
         self.slice_axis = slice_axis
 
         # Use memory mapping for NIfTI files
-        self.ct_volumes = [nib.load(path).get_fdata(dtype=np.float32, caching='unchanged')
+        self.ct_volumes = [nib.load(path).get_fdata(dtype=np.float32) #, caching='unchanged')
                            for path in self.ct_vol_paths]
-        self.mri_volumes = [nib.load(path).get_fdata(dtype=np.float32, caching='unchanged')
+        self.mri_volumes = [nib.load(path).get_fdata(dtype=np.float32) #, caching='unchanged')
                             for path in self.mri_vol_paths]
 
         # Pre-calculate indices and p99 values

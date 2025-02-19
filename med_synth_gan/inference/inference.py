@@ -16,7 +16,7 @@ class VolumeInferenceCallback(Callback):
         os.makedirs(output_dir, exist_ok=True)
 
     def on_train_epoch_end(self, trainer, pl_module):
-        if (trainer.current_epoch + 1) % 1 == 0:  # Run every 1 epochs
+        if (trainer.current_epoch + 1) % 1 == 0:
             # Create directories for this epoch
             epoch_dir = os.path.join(self.output_dir, f"epoch_{trainer.current_epoch}")
             fake_mri_dir = os.path.join(epoch_dir, "fake_mri_slices")
@@ -59,17 +59,17 @@ class VolumeInferenceCallback(Callback):
                         normalize=True
                     )
 
-                    vutils.save_image(
-                        ct_slice,
-                        os.path.join(ct_dir, f'CT_{i:04d}.png'),
-                        normalize=True
-                    )
+                    # vutils.save_image(
+                    #     ct_slice,
+                    #     os.path.join(ct_dir, f'CT_{i:04d}.png'),
+                    #     normalize=True
+                    # )
 
-                    vutils.save_image(
-                        scalar_field,
-                        os.path.join(scalar_field_dir, f"ScalarField_{i:04d}.png"),
-                        normalize=True
-                    )
+                    # vutils.save_image(
+                    #     scalar_field,
+                    #     os.path.join(scalar_field_dir, f"ScalarField_{i:04d}.png"),
+                    #     normalize=True
+                    # )
 
             # Convert PNG slices to NIfTI
             output_nifti_path = os.path.join(epoch_dir, f"fake_mri_epoch_{trainer.current_epoch}.nii.gz")
@@ -77,6 +77,6 @@ class VolumeInferenceCallback(Callback):
 
             # Assuming you have these utility functions
             png_slices_to_nifti(fake_mri_dir, output_nifti_path)
-            png_slices_to_nifti(ct_dir, ct_output_path)
+            # png_slices_to_nifti(ct_dir, ct_output_path)
 
             print(f"Epoch {trainer.current_epoch}: Saved inference results to {epoch_dir}")

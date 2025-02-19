@@ -150,14 +150,14 @@ def parse_args(argv):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=1,
+        default=8,
         type=int,
         help="Batch size for training",
     )
     parser.add_argument(
         "-e",
         "--epochs",
-        default=15,
+        default=10,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
@@ -225,7 +225,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000008_0000.nii.gz",
-        output_dir=f"inference_results", #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
+        output_dir=f"inference", #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
     trainer = pl.Trainer(
