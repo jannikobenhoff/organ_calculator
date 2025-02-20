@@ -61,7 +61,7 @@ class MedSynthGANModule(pl.LightningModule):
         loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
         self.manual_backward(loss_G)
 
-        torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.5)
         opt_g.step()
 
         # Train Discriminator
@@ -81,7 +81,7 @@ class MedSynthGANModule(pl.LightningModule):
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         self.manual_backward(loss_D)
 
-        torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.5)
         opt_d.step()
 
         if batch_idx % 100 == 0:
