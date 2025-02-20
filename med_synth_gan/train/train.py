@@ -52,8 +52,6 @@ class MedSynthGANModule(pl.LightningModule):
         opt_g, opt_d = self.optimizers()
         real_ct, real_mri = batch
 
-        # Train Generator every 5 steps
-        #if batch_idx % 5 == 0:
         opt_g.zero_grad()
         fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
 
@@ -62,6 +60,8 @@ class MedSynthGANModule(pl.LightningModule):
         loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
         loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
         self.manual_backward(loss_G)
+
+        torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), max_norm=1.0)
         opt_g.step()
 
         # Train Discriminator
@@ -80,6 +80,8 @@ class MedSynthGANModule(pl.LightningModule):
 
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         self.manual_backward(loss_D)
+
+        torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), max_norm=1.0)
         opt_d.step()
 
         if batch_idx % 100 == 0:
@@ -164,7 +166,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=1e-5, # 1e-5,
+        default=0, # 1e-5,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
@@ -225,7 +227,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir=f"inference", #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
+        output_dir=f"inference_clip", #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
     trainer = pl.Trainer(
