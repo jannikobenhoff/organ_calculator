@@ -164,7 +164,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=0, # 1e-5,
+        default=1e-5, # 1e-5,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
