@@ -24,9 +24,9 @@ class VolumeInferenceCallback(Callback):
             epoch_dir = os.path.join(self.output_dir, f"epoch_{trainer.current_epoch}")
             fake_mri_dir = os.path.join(epoch_dir, "fake_mri_slices")
             ct_dir = os.path.join(epoch_dir, "ct_slices")
-            scalar_field_dir = os.path.join(epoch_dir, "scalar_field_slices")
+            # scalar_field_dir = os.path.join(epoch_dir, "scalar_field_slices")
 
-            for d in [fake_mri_dir, ct_dir, scalar_field_dir]:
+            for d in [fake_mri_dir, ct_dir]: #, scalar_field_dir]:
                 # Delete directory and all its contents if it exists
                 if os.path.exists(d):
                     shutil.rmtree(d)
@@ -80,7 +80,7 @@ class VolumeInferenceCallback(Callback):
             print(f"Epoch {trainer.current_epoch}: Saved inference results to {epoch_dir}")
 
             # Store the middle slice of the current epoch's fake MRI
-            middle_index = len(fake_mri_slices) // 2
+            middle_index = len(fake_mri_slices) // 3
             if fake_mri_slices:
                 middle_slice = fake_mri_slices[middle_index].squeeze(0)  # Remove batch dimension
                 self.middle_slices.append(middle_slice)

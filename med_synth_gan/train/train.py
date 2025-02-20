@@ -117,7 +117,18 @@ class MedSynthGANModule(pl.LightningModule):
         # )
         # opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
 
-        return [opt_g, opt_d], []
+        # For example, StepLR that decays LR by gamma=0.5 every 10 epochs
+        scheduler_g = torch.optim.lr_scheduler.StepLR(opt_g, step_size=3, gamma=0.5)
+        scheduler_d = torch.optim.lr_scheduler.StepLR(opt_d, step_size=3, gamma=0.5)
+
+        # 3) Return them in the correct Lightning format
+        return (
+            [opt_g, opt_d],
+            [
+                {"scheduler": scheduler_g, "interval": "epoch", "frequency": 1, "name": "lr_g"},
+                {"scheduler": scheduler_d, "interval": "epoch", "frequency": 1, "name": "lr_d"},
+            ]
+        )
 
 class CustomProgressBar(TQDMProgressBar):
     def __init__(self):
