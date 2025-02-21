@@ -191,7 +191,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=5e-5, # should be larger than Generator for MSE 1e-4
+        default=2e-4, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -238,7 +238,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir=f"inference_bce_same", #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
+        output_dir=f"inference_mse", #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
     trainer = pl.Trainer(
