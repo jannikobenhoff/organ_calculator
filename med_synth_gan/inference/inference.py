@@ -84,7 +84,7 @@ class VolumeInferenceCallback(Callback):
             # Store the middle slice of the current epoch's fake MRI
             middle_index = len(fake_mri_slices) // 3
             if len(self.middle_slices) == 0:
-                self.middle_slices.append(ct_slices[middle_index])
+                self.middle_slices.append(ct_slices[middle_index].squeeze(0))
             if fake_mri_slices:
                 middle_slice = fake_mri_slices[middle_index].squeeze(0)  # Remove batch dimension
                 self.middle_slices.append(middle_slice)

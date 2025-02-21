@@ -163,14 +163,14 @@ def parse_args(argv):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=1,
+        default=24,
         type=int,
         help="Batch size for training",
     )
     parser.add_argument(
         "-e",
         "--epochs",
-        default=15,
+        default=30,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
