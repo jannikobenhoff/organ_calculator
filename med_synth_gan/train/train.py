@@ -36,7 +36,7 @@ class MedSynthGANModule(pl.LightningModule):
 
         # Loss functions
         if use_bce:
-            self.criterion = nn.BCEWithLogitsLoss()
+            self.criterion_GAN = nn.BCEWithLogitsLoss()
         else:
             self.criterion_GAN = nn.MSELoss()
         self.criterion_grad = Grad(penalty='l1')
