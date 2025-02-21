@@ -184,7 +184,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5, #5e-5
+        default=5e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -198,7 +198,7 @@ def parse_args(argv):
     parser.add_argument(
         "-bce",
         "--bce",
-        default=False,
+        default=True,
         type=bool,
         help="Use BCE Loss (default: %(default)s)",
     )
@@ -238,7 +238,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir=f"inference_mse", #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
+        output_dir="inference_{}".format("bce" if args.bce else "mse"), #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
     trainer = pl.Trainer(
