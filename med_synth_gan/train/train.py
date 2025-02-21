@@ -61,7 +61,7 @@ class MedSynthGANModule(pl.LightningModule):
         loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
         self.manual_backward(loss_G)
 
-        torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 1)
         opt_g.step()
 
         # Train Discriminator
@@ -81,7 +81,7 @@ class MedSynthGANModule(pl.LightningModule):
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         self.manual_backward(loss_D)
 
-        torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 1)
         opt_d.step()
 
         if batch_idx % 100 == 0:
@@ -118,8 +118,8 @@ class MedSynthGANModule(pl.LightningModule):
         # opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
 
         # For example, StepLR that decays LR by gamma=0.5 every 10 epochs
-        scheduler_g = torch.optim.lr_scheduler.StepLR(opt_g, step_size=3, gamma=0.5)
-        scheduler_d = torch.optim.lr_scheduler.StepLR(opt_d, step_size=3, gamma=0.5)
+        scheduler_g = torch.optim.lr_scheduler.StepLR(opt_g, step_size=5, gamma=0.5)
+        scheduler_d = torch.optim.lr_scheduler.StepLR(opt_d, step_size=5, gamma=0.5)
 
         # 3) Return them in the correct Lightning format
         return (
@@ -198,7 +198,7 @@ def parse_args(argv):
     parser.add_argument(
         "-bce",
         "--bce",
-        default=False,
+        default=True,
         type=bool,
         help="Use BCE Loss (default: %(default)s)",
     )

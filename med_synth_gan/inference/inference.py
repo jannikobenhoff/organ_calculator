@@ -49,13 +49,15 @@ class VolumeInferenceCallback(Callback):
             # Perform inference
             pl_module.eval()
             fake_mri_slices = []
+            ct_slices = []
             with torch.no_grad():
                 for i, (ct_slice,) in enumerate(test_loader):
                     ct_slice = ct_slice.to(pl_module.device)
 
                     # Generate fake MRI and scalar field
                     fake_mri, scalar_field = pl_module.G_ct2mri(ct_slice)
-                    fake_mri_slices.append(fake_mri.cpu())
+                    fake_mri_slices.append(fake_mri)
+                    ct_slices.append(ct_slice)
 
                     # Save slices as PNG
                     vutils.save_image(
@@ -81,13 +83,15 @@ class VolumeInferenceCallback(Callback):
 
             # Store the middle slice of the current epoch's fake MRI
             middle_index = len(fake_mri_slices) // 3
+            if len(self.middle_slices) == 0:
+                self.middle_slices.append(ct_slices[middle_index])
             if fake_mri_slices:
                 middle_slice = fake_mri_slices[middle_index].squeeze(0)  # Remove batch dimension
                 self.middle_slices.append(middle_slice)
 
     def on_train_end(self, trainer, pl_module):
         if self.middle_slices:
-            grid_image = vutils.make_grid(self.middle_slices, nrow=len(self.middle_slices), normalize=True)
+            grid_image = vutils.make_grid(self.middle_slices, nrow=4, normalize=True)
             grid_path = os.path.join(self.output_dir, "middle_slices_grid.png")
             vutils.save_image(grid_image, grid_path)
             print(f"Saved middle slice grid to {grid_path}")
