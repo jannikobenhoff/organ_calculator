@@ -237,7 +237,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir="inference_{}_scheduler".format("bce" if args.bce else "mse"), #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
+        output_dir="inference_{}_mse_new".format("bce" if args.bce else "mse"), #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
     trainer = pl.Trainer(
