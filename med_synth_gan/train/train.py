@@ -107,9 +107,9 @@ class MedSynthGANModule(pl.LightningModule):
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
             self.G_ct2mri.parameters(),
-            lr=self.lr, betas=(0.9, 0.95), weight_decay=0.01
+            lr=self.lr, betas=(0.9, 0.95), weight_decay=0.001  # 0.01
         )
-        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.01)
+        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
 
         # opt_g = torch.optim.Adam(
         #     self.G_ct2mri.parameters(),
@@ -117,7 +117,6 @@ class MedSynthGANModule(pl.LightningModule):
         # )
         # opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
 
-        # For example, StepLR that decays LR by gamma=0.5 every 10 epochs
         scheduler_g = torch.optim.lr_scheduler.ExponentialLR(opt_g, gamma=0.98)
         scheduler_d = torch.optim.lr_scheduler.ExponentialLR(opt_d, gamma=0.98)
 
@@ -191,7 +190,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=5e-5, # should be larger than Generator for MSE 1e-4
+        default=2e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
