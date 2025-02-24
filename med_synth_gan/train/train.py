@@ -61,7 +61,7 @@ class MedSynthGANModule(pl.LightningModule):
         loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
         self.manual_backward(loss_G)
 
-        torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 1)
+        torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
         opt_g.step()
 
         # Train Discriminator
@@ -81,7 +81,7 @@ class MedSynthGANModule(pl.LightningModule):
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         self.manual_backward(loss_D)
 
-        torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 1)
+        torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
         opt_d.step()
 
         if batch_idx % 100 == 0:
@@ -190,7 +190,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=2e-5, # should be larger than Generator for MSE 1e-4
+        default=1e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
