@@ -176,21 +176,21 @@ def parse_args(argv):
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=1e-6, # 1e-5,
+        default=0, # 1e-5,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=2e-5, #5e-5
+        default=5e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=2e-5, # should be larger than Generator for MSE 1e-4
+        default=5e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -237,7 +237,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir="inference_{}_5tv".format("bce" if args.bce else "mse"), #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
+        output_dir="inference_{}_5".format("bce" if args.bce else "mse"), #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
     trainer = pl.Trainer(
