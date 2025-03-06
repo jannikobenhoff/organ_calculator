@@ -55,6 +55,6 @@ if __name__ == "__main__":
             output_path = os.path.join(output_dir, f"{filename}.png")
             transformed_pil.save(output_path)
 
-            print(f"Processed and saved: {output_path}")
+            print(f"Processed and saved: {output_path}", flush=True)
 
-    print("Processing complete!")
+    print("Processing complete!", flush=True)
