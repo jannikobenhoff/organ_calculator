@@ -2,7 +2,6 @@ import os
 import glob
 import SimpleITK as sitk
 
-
 def png_slices_to_nifti(png_folder, output_nifti):
     """
     Reads a sorted list of PNG files in `png_folder` and

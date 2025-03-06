@@ -379,8 +379,10 @@ if __name__ == '__main__':
         return hist, bin_edges
 
     train_dataset = CtMri2DDataset(
-        ct_dir="../files/ct/",
-        mri_dir="../files/mri/",
+        # ct_dir="../files/ct/",
+        ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
+        mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
+        #mri_dir="../files/mri/",
         slice_axis=2
     )
 
