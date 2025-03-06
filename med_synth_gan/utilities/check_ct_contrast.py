@@ -40,7 +40,7 @@ if __name__ == "__main__":
                 continue
 
             # Get the 3rd slice (index 2)
-            slice_3rd = array[35]
+            slice_3rd = array[-1]
 
             # Convert to PIL Image for transformations
             slice_pil = Image.fromarray(slice_3rd.astype(np.float32))
