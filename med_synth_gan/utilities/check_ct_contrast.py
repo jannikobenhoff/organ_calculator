@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
             # Determine grid size (e.g., 3x3, 4x4)
             num_slices = len(transformed_images)
-            grid_size = (3, 3) if num_slices >= 9 else (2, 2) if num_slices >= 4 else (1, num_slices)
+            grid_size = (4, 4) if num_slices >= 9 else (3, 3) if num_slices >= 4 else (1, num_slices)
 
             # Create image grid
             grid_image = create_grid(transformed_images, grid_size)
