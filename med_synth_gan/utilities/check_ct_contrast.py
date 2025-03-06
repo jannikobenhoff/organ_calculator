@@ -25,6 +25,27 @@ if __name__ == "__main__":
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
+    def create_grid(images, grid_size=(3, 3)):
+        """
+        Arrange a list of images into a grid.
+        images: List of PIL images
+        grid_size: Tuple (rows, cols)
+        """
+        rows, cols = grid_size
+        w, h = images[0].size  # Get size of single image
+
+        grid_img = Image.new("L", (cols * w, rows * h), color=0)  # Create blank grid
+
+        for idx, img in enumerate(images):
+            if idx >= rows * cols:  # Stop if we exceed grid capacity
+                break
+            x = (idx % cols) * w
+            y = (idx // cols) * h
+            grid_img.paste(img, (x, y))
+
+        return grid_img
+
+
     # Process each NIfTI file in ct_dir
     for filename in os.listdir(ct_dir):
         if filename.endswith(".nii") or filename.endswith(".nii.gz"):
@@ -34,26 +55,31 @@ if __name__ == "__main__":
             img = sitk.ReadImage(file_path)
             array = sitk.GetArrayFromImage(img)  # Shape: (slices, H, W)
 
-            # Ensure there are at least 3 slices
-            if array.shape[0] < 3:
-                print(f"Skipping {filename}: not enough slices.")
+            # Select every 10th slice
+            selected_slices = [array[i] for i in range(0, array.shape[0], 10)]
+
+            # Convert slices to images and apply transformations
+            transformed_images = []
+            for slice_data in selected_slices:
+                slice_pil = Image.fromarray(slice_data.astype(np.float32))
+                transformed_slice = contrast_transform_ct(slice_pil)
+                transformed_pil = T.ToPILImage()(transformed_slice)
+                transformed_images.append(transformed_pil)
+
+            if not transformed_images:
+                print(f"Skipping {filename}: Not enough slices.")
                 continue
 
-            # Get the 3rd slice (index 2)
-            slice_3rd = array[-1]
+            # Determine grid size (e.g., 3x3, 4x4)
+            num_slices = len(transformed_images)
+            grid_size = (3, 3) if num_slices >= 9 else (2, 2) if num_slices >= 4 else (1, num_slices)
 
-            # Convert to PIL Image for transformations
-            slice_pil = Image.fromarray(slice_3rd.astype(np.float32))
+            # Create image grid
+            grid_image = create_grid(transformed_images, grid_size)
 
-            # Apply transformations
-            transformed_slice = contrast_transform_ct(slice_pil)
-
-            # Convert tensor to PIL image
-            transformed_pil = T.ToPILImage()(transformed_slice)
-
-            # Save transformed image
+            # Save grid image
             output_path = os.path.join(output_dir, f"{filename}.png")
-            transformed_pil.save(output_path)
+            grid_image.save(output_path)
 
             print(f"Processed and saved: {output_path}", flush=True)
 
