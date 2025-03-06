@@ -56,7 +56,7 @@ if __name__ == "__main__":
             array = sitk.GetArrayFromImage(img)  # Shape: (slices, H, W)
 
             # Select every 10th slice
-            selected_slices = [array[i] for i in range(0, array.shape[0], 15)]
+            selected_slices = [array[i] for i in range(0, array.shape[0], 10)]
 
             # Convert slices to images and apply transformations
             transformed_images = []
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
             # Determine grid size (e.g., 3x3, 4x4)
             num_slices = len(transformed_images)
-            grid_size = (3, 3) if num_slices >= 9 else (2, 2) if num_slices >= 4 else (1, num_slices)
+            grid_size = (3, 4) if num_slices >= 9 else (3, 3) if num_slices >= 4 else (1, num_slices)
 
             # Create image grid
             grid_image = create_grid(transformed_images, grid_size)
