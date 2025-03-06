@@ -102,7 +102,7 @@ if __name__ == "__main__":
             grid_image.save(grid_output_path)
 
             # Flatten all transformed slices into one array for histogram
-            full_tensor = torch.cat([t.flatten() for t in transformed_tensors])
-            plot_histogram(full_tensor, filename)
+            # full_tensor = torch.cat([t.flatten() for t in transformed_tensors])
+            # plot_histogram(full_tensor, filename)
 
     print("Processing complete!", flush=True)
