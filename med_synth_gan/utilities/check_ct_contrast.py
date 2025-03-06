@@ -56,7 +56,7 @@ if __name__ == "__main__":
             array = sitk.GetArrayFromImage(img)  # Shape: (slices, H, W)
 
             # Select every 10th slice
-            selected_slices = [array[i] for i in range(0, array.shape[0], 10)]
+            selected_slices = [array[i] for i in range(0, array.shape[0], 15)]
 
             # Convert slices to images and apply transformations
             transformed_images = []
