@@ -38,7 +38,7 @@ class MedSynthGANModule(pl.LightningModule):
         if use_bce:
             self.criterion_GAN = nn.BCEWithLogitsLoss()
         else:
-            self.criterion_GAN = nn.MSELoss()
+            self.criterion_GAN = nn.HingeEmbeddingLoss(margin=1.5)
         self.criterion_grad = Grad(penalty='l1')
 
     def forward(self, ct_image):
@@ -197,7 +197,7 @@ def parse_args(argv):
     parser.add_argument(
         "-bce",
         "--bce",
-        default=True,
+        default=False,
         type=bool,
         help="Use BCE Loss (default: %(default)s)",
     )
