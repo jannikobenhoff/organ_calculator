@@ -12,9 +12,6 @@ from med_synth_gan.models.losses import Grad
 from med_synth_gan.inference.inference import VolumeInferenceCallback
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import torchvision.utils as vutils
-import os
-import numpy as np
-import torch.nn.functional as F
 
 
 class MedSynthGANModule(pl.LightningModule):
@@ -121,11 +118,11 @@ class MedSynthGANModule(pl.LightningModule):
                 f"mri_train_slice{batch_idx}.png",
                 normalize=True
             )
-            # vutils.save_image(
-            #     real_ct,
-            #     f"ct_train_slice{batch_idx}.png",
-            #     normalize=True
-            # )
+            vutils.save_image(
+                real_ct,
+                f"ct_train_slice{batch_idx}.png",
+                normalize=True
+            )
 
     def configure_optimizers(self):
         # opt_g = torch.optim.AdamW(
@@ -213,14 +210,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5, #5e-5
+        default=2e-6, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=2e-5, # should be larger than Generator for MSE 1e-4
+        default=5e-6, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
