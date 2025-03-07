@@ -128,11 +128,18 @@ class MedSynthGANModule(pl.LightningModule):
             # )
 
     def configure_optimizers(self):
+        # opt_g = torch.optim.AdamW(
+        #     self.G_ct2mri.parameters(),
+        #     lr=self.lr, betas=(0.9, 0.95), weight_decay=0.001  # 0.01
+        # )
         opt_g = torch.optim.AdamW(
             self.G_ct2mri.parameters(),
-            lr=self.lr, betas=(0.9, 0.95), weight_decay=0.001  # 0.01
+            lr=self.lr * 0.5,  # Reduce G's learning rate
+            betas=(0.9, 0.95), weight_decay=0.001
         )
-        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
+        # opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
+        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=max(self.lr_d, self.lr * 1.5), betas=(0.9, 0.95),
+                                  weight_decay=0.001)
 
         # opt_g = torch.optim.Adam(
         #     self.G_ct2mri.parameters(),
@@ -206,14 +213,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=2e-5, #5e-5
+        default=1e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=3e-5, # should be larger than Generator for MSE 1e-4
+        default=2e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
