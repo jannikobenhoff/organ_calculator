@@ -129,15 +129,18 @@ class MedSynthGANModule(pl.LightningModule):
         #     self.G_ct2mri.parameters(),
         #     lr=self.lr, betas=(0.9, 0.95), weight_decay=0.001  # 0.01
         # )
+        lr_g = self.lr * 0.5
         opt_g = torch.optim.AdamW(
             self.G_ct2mri.parameters(),
-            lr=self.lr * 0.5,  # Reduce G's learning rate
+            lr=lr_g,  # Reduce G's learning rate
             betas=(0.9, 0.95), weight_decay=0.001
         )
         # opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
-        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=max(self.lr_d, self.lr * 1.5), betas=(0.9, 0.95),
+        lr_d = max(self.lr_d, self.lr * 1.5)
+        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=lr_d, betas=(0.9, 0.95),
                                   weight_decay=0.001)
-
+        self.log('lr_d', lr_d, prog_bar=True)
+        self.log('lr_g', lr_g, prog_bar=True)
         # opt_g = torch.optim.Adam(
         #     self.G_ct2mri.parameters(),
         #     lr=self.lr, betas=(0.5, 0.999)
@@ -173,7 +176,9 @@ class CustomProgressBar(TQDMProgressBar):
             "sf_mean": items.get("scalar_field_mean", ""),
             "sf_min": items.get("scalar_field_min", ""),
             "sf_max": items.get("scalar_field_max", ""),
-            "tv_loss": items.get("tv_loss", ""),
+            "lr_g": items.get("lr_g", ""),
+            "lr_d": items.get("lr_d", ""),
+            # "tv_loss": items.get("tv_loss", ""),
         }
 
 def collate_fn(batch):
@@ -210,14 +215,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=3e-6, #5e-5
+        default=1e-4, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=5e-6, # should be larger than Generator for MSE 1e-4
+        default=2e-4, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
