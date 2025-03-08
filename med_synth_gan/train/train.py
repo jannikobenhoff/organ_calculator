@@ -110,7 +110,9 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
             self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
             self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
-            self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
+            #self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
+            self.log('lr_d', self.lr_d, prog_bar=True)
+            self.log('lr_g', self.lr, prog_bar=True)
 
         if batch_idx % 100 == 0:
             vutils.save_image(
@@ -129,18 +131,15 @@ class MedSynthGANModule(pl.LightningModule):
         #     self.G_ct2mri.parameters(),
         #     lr=self.lr, betas=(0.9, 0.95), weight_decay=0.001  # 0.01
         # )
-        lr_g = self.lr * 0.5
         opt_g = torch.optim.AdamW(
             self.G_ct2mri.parameters(),
-            lr=lr_g,  # Reduce G's learning rate
+            lr=self.lr * 0.5,  # Reduce G's learning rate
             betas=(0.9, 0.95), weight_decay=0.001
         )
         # opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
-        lr_d = max(self.lr_d, self.lr * 1.5)
-        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=lr_d, betas=(0.9, 0.95),
+        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=max(self.lr_d, self.lr * 1.5), betas=(0.9, 0.95),
                                   weight_decay=0.001)
-        self.log('lr_d', lr_d, prog_bar=True)
-        self.log('lr_g', lr_g, prog_bar=True)
+
         # opt_g = torch.optim.Adam(
         #     self.G_ct2mri.parameters(),
         #     lr=self.lr, betas=(0.5, 0.999)
