@@ -230,7 +230,7 @@ def parse_args(argv):
     parser.add_argument(
         "-bce",
         "--bce",
-        default=True,
+        default=False,
         type=bool,
         help="Use BCE Loss (default: %(default)s)",
     )
