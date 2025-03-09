@@ -58,10 +58,13 @@ class CtMri2DDataset(Dataset):
 
     def _get_slice(self, volume, slice_idx):
         if self.slice_axis == 0:
-            return volume[slice_idx, :, :]
+            slice_ = volume[slice_idx, :, :]
         elif self.slice_axis == 1:
-            return volume[:, slice_idx, :]
-        return volume[:, :, slice_idx]
+            slice_ = volume[:, slice_idx, :]
+        else:
+            slice_ = volume[:, :, slice_idx]
+
+        return np.rot90(slice_)
 
     def __getitem__(self, idx):
         # CT processing remains the same
@@ -379,10 +382,10 @@ if __name__ == '__main__':
         return hist, bin_edges
 
     train_dataset = CtMri2DDataset(
-        # ct_dir="../files/ct/",
-        ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
-        mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
-        #mri_dir="../files/mri/",
+        ct_dir="../files/ct/",
+        #ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
+        #mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
+        mri_dir="../files/mri/",
         slice_axis=2
     )
 
@@ -419,9 +422,10 @@ if __name__ == '__main__':
 
         # Save slices as PNG
         vutils.save_image(
-            real_mri,
-            os.path.join("fake", f"fakeMRI_{i:04d}.png"),
+            real_ct,
+            f"CT_{i:04d}.png",
             normalize=True
         )
+        break
     # Assuming you have these utility functions
-    png_slices_to_nifti("fake", "nif")
+    #png_slices_to_nifti("fake", "nif")
