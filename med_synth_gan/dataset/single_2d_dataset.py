@@ -39,7 +39,7 @@ class SingleVolume2DDataset(Dataset):
         else:
             slice_2d = self.volume[:, :, slice_idx]  # Default: axial (Z-axis)
 
-        return slice_2d
+        return np.rot90(slice_2d)
 
     def __len__(self):
         return len(self.slices)
