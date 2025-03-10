@@ -116,17 +116,17 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('lr_d', self.lr_d, prog_bar=True)
             self.log('lr_g', self.lr, prog_bar=True)
 
-        if batch_idx % 100 == 0:
-            vutils.save_image(
-                real_mri,
-                f"mri_train_slice{batch_idx}.png",
-                normalize=True
-            )
-            vutils.save_image(
-                real_ct,
-                f"ct_train_slice{batch_idx}.png",
-                normalize=True
-            )
+        # if batch_idx % 100 == 0:
+        #     vutils.save_image(
+        #         real_mri,
+        #         f"mri_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
+        #     vutils.save_image(
+        #         real_ct,
+        #         f"ct_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
