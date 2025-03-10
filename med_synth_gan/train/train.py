@@ -129,18 +129,13 @@ class MedSynthGANModule(pl.LightningModule):
             )
 
     def configure_optimizers(self):
-        # opt_g = torch.optim.AdamW(
-        #     self.G_ct2mri.parameters(),
-        #     lr=self.lr, betas=(0.9, 0.95), weight_decay=0.001  # 0.01
-        # )
         opt_g = torch.optim.AdamW(
             self.G_ct2mri.parameters(),
-            lr=self.lr * 0.5,  # Reduce G's learning rate
-            betas=(0.9, 0.95), weight_decay=0.001
+            lr=self.lr, betas=(0.9, 0.95), weight_decay=0.001  # 0.01
         )
-        # opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
-        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=max(self.lr_d, self.lr * 1.5), betas=(0.9, 0.95),
-                                  weight_decay=0.001)
+
+        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
+
 
         # opt_g = torch.optim.Adam(
         #     self.G_ct2mri.parameters(),
