@@ -233,7 +233,7 @@ def parse_args(argv):
     parser.add_argument(
         "-loss",
         "--loss",
-        default="mse",  # bce, mse, hinge
+        default="hinge",  # bce, mse, hinge
         type=str,
         help="Loss (default: %(default)s)",
     )
