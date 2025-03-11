@@ -231,8 +231,8 @@ def parse_args(argv):
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
-        "-loss",
-        "--loss",
+        "-loss_type",
+        "--loss_type",
         default="bce",  # bce, mse, hinge
         type=str,
         help="Loss (default: %(default)s)",
