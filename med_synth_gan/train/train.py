@@ -15,13 +15,13 @@ import torchvision.utils as vutils
 
 
 class MedSynthGANModule(pl.LightningModule):
-    def __init__(self, lr, lr_d, lambda_grad, use_bce=False):
+    def __init__(self, lr, lr_d, lambda_grad, loss_type="mse"):
         super().__init__()
         self.automatic_optimization = False
         self.lr = lr
         self.lr_d = lr_d
         self.lambda_grad = lambda_grad
-        self.use_bce = use_bce
+        self.loss_type = loss_type
 
         self.save_hyperparameters()
 
@@ -32,10 +32,12 @@ class MedSynthGANModule(pl.LightningModule):
         # self.D_ct = Discriminator()
 
         # Loss functions
-        if use_bce:
+        if loss_type == "bce":
             self.criterion_GAN = nn.BCEWithLogitsLoss()
-        else:
-            self.criterion_GAN = nn.MSELoss() # nn.HingeEmbeddingLoss(margin=1)
+        elif loss_type == "mse":
+            self.criterion_GAN = nn.MSELoss()
+        elif loss_type == "hinge":
+            self.criterion_GAN = nn.HingeEmbeddingLoss(margin=1)
         self.criterion_grad = Grad(penalty='l1')
 
     def forward(self, ct_image):
@@ -53,9 +55,12 @@ class MedSynthGANModule(pl.LightningModule):
         fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
 
         pred_fake_mri = self.D_mri(fake_mri)
-        loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
-        # if hinge
-        # loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.full_like(pred_fake_mri, 1))  # Ensure +1 target
+        if self.loss_type == "hinge":
+            loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.full_like(pred_fake_mri, 1))  # Ensure +1 target
+        else:
+            loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
+
+
 
         loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
         loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
@@ -64,47 +69,50 @@ class MedSynthGANModule(pl.LightningModule):
         torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
         opt_g.step()
 
-        # Train Discriminator
-        opt_d.zero_grad()
-        fake_mri, _ = self.G_ct2mri(real_ct)
-        pred_real_mri = self.D_mri(real_mri)
-        if self.use_bce:
-            real_labels_smooth = torch.full_like(pred_real_mri, 0.9)  # instead of 1.0
-            loss_D_real = self.criterion_GAN(pred_real_mri, real_labels_smooth)
+        if self.loss_type == "hinge":
+            # Train Discriminator
+            opt_d.zero_grad()
+            fake_mri, _ = self.G_ct2mri(real_ct)
+
+            # Real MRI classification
+            pred_real_mri = self.D_mri(real_mri)
+            real_labels = torch.ones_like(pred_real_mri)  # Previously 1.0
+            real_labels[real_labels == 1] = 1  # Ensure positive class is +1
+
+            loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
+
+            # Fake MRI classification
+            pred_fake_mri = self.D_mri(fake_mri.detach())
+            fake_labels = torch.zeros_like(pred_fake_mri)  # Previously 0.0
+            fake_labels[fake_labels == 0] = -1  # Ensure negative class is -1
+
+            loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
+
+            loss_D = (loss_D_real + loss_D_fake) * 0.5
+            self.manual_backward(loss_D)
+            opt_d.step()
         else:
-            loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+            # Train Discriminator
+            opt_d.zero_grad()
+            fake_mri, _ = self.G_ct2mri(real_ct)
+            pred_real_mri = self.D_mri(real_mri)
+            if self.loss_type == "bce":
+                real_labels_smooth = torch.full_like(pred_real_mri, 0.9)  # instead of 1.0
+                loss_D_real = self.criterion_GAN(pred_real_mri, real_labels_smooth)
+            else:
+                # MSE
+                loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
 
 
-        pred_fake_mri = self.D_mri(fake_mri.detach())
-        loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
+            pred_fake_mri = self.D_mri(fake_mri.detach())
+            loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
 
-        loss_D = (loss_D_real + loss_D_fake) * 0.5
-        self.manual_backward(loss_D)
+            loss_D = (loss_D_real + loss_D_fake) * 0.5
+            self.manual_backward(loss_D)
 
-        torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
-        opt_d.step()
-        # Train Discriminator
-        # if hinge
-        # opt_d.zero_grad()
-        # fake_mri, _ = self.G_ct2mri(real_ct)
-        #
-        # # Real MRI classification
-        # pred_real_mri = self.D_mri(real_mri)
-        # real_labels = torch.ones_like(pred_real_mri)  # Previously 1.0
-        # real_labels[real_labels == 1] = 1  # Ensure positive class is +1
-        #
-        # loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
-        #
-        # # Fake MRI classification
-        # pred_fake_mri = self.D_mri(fake_mri.detach())
-        # fake_labels = torch.zeros_like(pred_fake_mri)  # Previously 0.0
-        # fake_labels[fake_labels == 0] = -1  # Ensure negative class is -1
-        #
-        # loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
-        #
-        # loss_D = (loss_D_real + loss_D_fake) * 0.5
-        # self.manual_backward(loss_D)
-        # opt_d.step()
+            torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
+            opt_d.step()
+
 
         if batch_idx % 100 == 0:
             self.log('loss_G', loss_G, prog_bar=True)
@@ -211,23 +219,23 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=2e-6, #5e-5
+        default=1e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=5e-6, # should be larger than Generator for MSE 1e-4
+        default=5e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
-        "-bce",
-        "--bce",
-        default=False,
-        type=bool,
-        help="Use BCE Loss (default: %(default)s)",
+        "-loss",
+        "--loss",
+        default="mse",  # bce, mse, hinge
+        type=str,
+        help="Loss (default: %(default)s)",
     )
 
     args = parser.parse_args(argv)
@@ -260,12 +268,12 @@ def main(argv):
 
     # Initialize model and trainer
     model = MedSynthGANModule(lr=args.learning_rate, lr_d=args.learning_rate_discriminator,
-                              lambda_grad=args.lambda_grad, use_bce=args.bce)
+                              lambda_grad=args.lambda_grad, loss_type=args.loss_type)
 
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir="inference_{}_5".format("bce" if args.bce else "mse"), #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
+        output_dir="inference_{}".format(args.loss_type), #_{args.batch_size}_{args.learning_rate}_{args.learning_rate_discriminator}",
     )
 
     trainer = pl.Trainer(
