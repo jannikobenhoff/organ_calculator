@@ -198,7 +198,7 @@ def parse_args(argv):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=24,
+        default=1,
         type=int,
         help="Batch size for training",
     )
@@ -226,14 +226,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=8e-6, # should be larger than Generator for MSE 1e-4
+        default=1e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-loss_type",
         "--loss_type",
-        default="bce",  # bce, mse, hinge
+        default="mse",  # bce, mse, hinge
         type=str,
         help="Loss (default: %(default)s)",
     )
@@ -273,7 +273,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir="inference_{}_{}_{}".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator),
+        output_dir="inference_{}_{}_{}_b1".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator),
     )
 
     trainer = pl.Trainer(
