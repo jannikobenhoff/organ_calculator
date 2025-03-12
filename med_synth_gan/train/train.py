@@ -219,21 +219,21 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=5e-5, #5e-5
+        default=6e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=2e-4, # should be larger than Generator for MSE 1e-4
+        default=1e-4, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-loss_type",
         "--loss_type",
-        default="mse",  # bce, mse, hinge
+        default="hinge",  # bce, mse, hinge
         type=str,
         help="Loss (default: %(default)s)",
     )
