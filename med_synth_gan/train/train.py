@@ -180,8 +180,8 @@ class CustomProgressBar(TQDMProgressBar):
             "sf_mean": items.get("scalar_field_mean", ""),
             "sf_min": items.get("scalar_field_min", ""),
             "sf_max": items.get("scalar_field_max", ""),
-            "lr_g": items.get("lr_g", ""),
-            "lr_d": items.get("lr_d", ""),
+            #"lr_g": items.get("lr_g", ""),
+            #"lr_d": items.get("lr_d", ""),
             # "tv_loss": items.get("tv_loss", ""),
         }
 
