@@ -21,7 +21,7 @@ class CtMri2DDataset(Dataset):
         self.mri_vol_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
 
         # Reduce ct data set sice to balance both
-        self.ct_vol_paths = self.ct_vol_paths[:]
+        self.ct_vol_paths = self.ct_vol_paths[:50]
 
         self.slice_axis = slice_axis
 
