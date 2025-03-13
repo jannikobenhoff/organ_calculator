@@ -60,8 +60,6 @@ class MedSynthGANModule(pl.LightningModule):
         else:
             loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
 
-
-
         loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
         loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
         self.manual_backward(loss_G)
@@ -156,11 +154,12 @@ class MedSynthGANModule(pl.LightningModule):
 
         # 3) Return them in the correct Lightning format
         return (
-            [opt_g, opt_d],
-            [
-                {"scheduler": scheduler_g, "interval": "epoch", "frequency": 1, "name": "lr_g"},
-                {"scheduler": scheduler_d, "interval": "epoch", "frequency": 1, "name": "lr_d"},
-            ]
+            [opt_g, opt_d]
+            # ,
+            # [
+            #     {"scheduler": scheduler_g, "interval": "epoch", "frequency": 1, "name": "lr_g"},
+            #     {"scheduler": scheduler_d, "interval": "epoch", "frequency": 1, "name": "lr_d"},
+            # ]
         )
 
 class CustomProgressBar(TQDMProgressBar):
@@ -219,7 +218,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=5e-6, #5e-5
+        default=4e-6, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
