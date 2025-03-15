@@ -64,7 +64,7 @@ class MedSynthGANModule(pl.LightningModule):
         loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
         self.manual_backward(loss_G)
 
-        # torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
         opt_g.step()
 
         if self.loss_type == "hinge":
@@ -108,7 +108,7 @@ class MedSynthGANModule(pl.LightningModule):
             loss_D = (loss_D_real + loss_D_fake) * 0.5
             self.manual_backward(loss_D)
 
-            #torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
+            torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
             opt_d.step()
 
 
@@ -149,8 +149,8 @@ class MedSynthGANModule(pl.LightningModule):
         # )
         # opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
 
-        scheduler_g = torch.optim.lr_scheduler.ExponentialLR(opt_g, gamma=0.98)
-        scheduler_d = torch.optim.lr_scheduler.ExponentialLR(opt_d, gamma=0.98)
+        # scheduler_g = torch.optim.lr_scheduler.ExponentialLR(opt_g, gamma=0.98)
+        # scheduler_d = torch.optim.lr_scheduler.ExponentialLR(opt_d, gamma=0.98)
 
         # 3) Return them in the correct Lightning format
         return (
@@ -272,7 +272,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir="inference_{}_{}_{}".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator),
+        output_dir="inference_{}_{}_{}_withClip".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator),
     )
 
     trainer = pl.Trainer(
