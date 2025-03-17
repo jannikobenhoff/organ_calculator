@@ -49,22 +49,10 @@ class UNet(nn.Module):
         x0_1 = self.conv0_1(torch.cat([x0_0, self.up(x1_1)], 1))
  
         scale_field = self.final(x0_1)
-        # scale_field *= 0.1
 
-        scale_field = scale_field + 1
+        scale_field = scale_field #+ 1 // Changed
 
-        #return scale_field * input, scale_field
-        # field = self.final(x0_1)
-        #
-        # # Channel 0 = scale, Channel 1 = offset
-        # scale_field = field[:, 0:1, :, :]  # shape [B,1,H,W]
-        # offset_field = field[:, 1:2, :, :] * 0.1  # shape [B,1,H,W]
-        #
-        # # Shift scale so that 0 => 1.0 multiplication factor
-        # scale_field = scale_field + 1.0
-
-        # Combine scale and offset
-        output = (input * scale_field)
+        output = (input + scale_field)
 
         return output, scale_field
 
