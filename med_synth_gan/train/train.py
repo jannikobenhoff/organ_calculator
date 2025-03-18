@@ -94,7 +94,7 @@ class MedSynthGANModule(pl.LightningModule):
             opt_d.zero_grad()
             fake_mri, _ = self.G_ct2mri(real_ct)
             pred_real_mri = self.D_mri(real_mri)
-            if False:#self.loss_type == "bce":
+            if self.loss_type == "bce":
                 real_labels_smooth = torch.full_like(pred_real_mri, 0.9)  # instead of 1.0
                 loss_D_real = self.criterion_GAN(pred_real_mri, real_labels_smooth)
             else:
@@ -204,28 +204,28 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=30,
+        default=100,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=1e-6,
+        default=0, #1e-6,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5, #5e-5
+        default=5e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-5, # should be larger than Generator for MSE 1e-4
+        default=5e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )

@@ -50,9 +50,9 @@ class UNet(nn.Module):
  
         scale_field = self.final(x0_1)
 
-        scale_field = scale_field #+ 1 // Changed
+        scale_field = scale_field + 1
 
-        output = (input + scale_field)
+        output = (input * scale_field)
 
         return output, scale_field
 
