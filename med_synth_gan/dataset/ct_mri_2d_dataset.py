@@ -56,7 +56,7 @@ class CtMri2DDataset(Dataset):
             indices.extend([(vol_idx, s) for s in range(num_slices)])
         return indices
 
-    def _get_slice(self, volume, slice_idx):
+    def _get_slice(self, volume, slice_idx, mri=False):
         if self.slice_axis == 0:
             slice_ = volume[slice_idx, :, :]
         elif self.slice_axis == 1:
@@ -64,19 +64,23 @@ class CtMri2DDataset(Dataset):
         else:
             slice_ = volume[:, :, slice_idx]
 
-        return np.rot90(slice_)
+        rotated =  np.rot90(slice_)
+
+        if mri:
+            return np.fliplr(rotated)
+        else:
+            return rotated
 
     def __getitem__(self, idx):
         # CT processing remains the same
         ct_vol_idx, ct_slice_idx = self.ct_slice_indices[idx % len(self.ct_slice_indices)]
-        ct_slice = self._get_slice(self.ct_volumes[ct_vol_idx], ct_slice_idx)
+        ct_slice = self._get_slice(self.ct_volumes[ct_vol_idx], ct_slice_idx, mri=False)
         ct_img = Image.fromarray(ct_slice, mode='F')
         ct_tensor = contrast_transform_ct(ct_img)
 
-
         # Modified MRI processing
         mri_vol_idx, mri_slice_idx = self.mri_slice_indices[idx % len(self.mri_slice_indices)]
-        mri_slice = self._get_slice(self.mri_volumes[mri_vol_idx], mri_slice_idx)
+        mri_slice = self._get_slice(self.mri_volumes[mri_vol_idx], mri_slice_idx, mri=True)
         mri_img = Image.fromarray(mri_slice, mode='F')
 
         # Apply MRI transformations with improved normalization
