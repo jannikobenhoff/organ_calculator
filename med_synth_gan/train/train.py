@@ -122,17 +122,17 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('lr_d', self.lr_d, prog_bar=True)
             self.log('lr_g', self.lr, prog_bar=True)
 
-        if batch_idx % 10 == 0:
-            vutils.save_image(
-                real_mri,
-                f"mri_train_slice{batch_idx}.png",
-                normalize=True
-            )
-            vutils.save_image(
-                real_ct,
-                f"ct_train_slice{batch_idx}.png",
-                normalize=True
-            )
+        # if batch_idx % 10 == 0:
+        #     vutils.save_image(
+        #         real_mri,
+        #         f"mri_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
+        #     vutils.save_image(
+        #         real_ct,
+        #         f"ct_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
@@ -272,7 +272,7 @@ def main(argv):
     # Inference
     inference_callback = VolumeInferenceCallback(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir="inference_{}_{}_{}_add".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator),
+        output_dir="inference_{}_{}_{}".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator),
     )
 
     trainer = pl.Trainer(
