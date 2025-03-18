@@ -77,7 +77,7 @@ class Discriminator(nn.Module):
 
         model = [
             nn.Conv2d(input_nc, ndf, kernel_size=3, stride=2, padding=1),
-            nn.InstanceNorm2d(ndf),
+            # nn.InstanceNorm2d(ndf),
             nn.LeakyReLU(0.01, inplace=True)
         ]
         
