@@ -218,7 +218,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=5e-5, #5e-5
+        default=1e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -232,7 +232,7 @@ def parse_args(argv):
     parser.add_argument(
         "-loss_type",
         "--loss_type",
-        default="bce",  # bce, mse, hinge
+        default="mse",  # bce, mse, hinge
         type=str,
         help="Loss (default: %(default)s)",
     )
