@@ -115,7 +115,7 @@ class MedSynthGANModule(pl.LightningModule):
                 opt_d.step()
 
 
-        if batch_idx % 100 == 0:
+        if batch_idx % 100 == 0 and self.step % 2 == 0:
             self.log('loss_G', loss_G, prog_bar=True)
             self.log('loss_D', loss_D, prog_bar=True)
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
