@@ -22,7 +22,7 @@ class MedSynthGANModule(pl.LightningModule):
         self.lr_d = lr_d
         self.lambda_grad = lambda_grad
         self.loss_type = loss_type
-
+        self.step = 0
         self.save_hyperparameters()
 
         # Models
@@ -39,6 +39,7 @@ class MedSynthGANModule(pl.LightningModule):
         elif loss_type == "hinge":
             self.criterion_GAN = nn.HingeEmbeddingLoss(margin=1)
         self.criterion_grad = Grad(penalty='l1')
+
 
     def forward(self, ct_image):
         return self.G_ct2mri(ct_image)
@@ -67,49 +68,51 @@ class MedSynthGANModule(pl.LightningModule):
         # torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
         opt_g.step()
 
-        if self.loss_type == "hinge":
-            # Train Discriminator
-            opt_d.zero_grad()
-            fake_mri, _ = self.G_ct2mri(real_ct)
 
-            # Real MRI classification
-            pred_real_mri = self.D_mri(real_mri)
-            real_labels = torch.ones_like(pred_real_mri)  # Previously 1.0
-            real_labels[real_labels == 1] = 1  # Ensure positive class is +1
+        if self.step % 2 == 0:
+            if self.loss_type == "hinge":
+                # Train Discriminator
+                opt_d.zero_grad()
+                fake_mri, _ = self.G_ct2mri(real_ct)
 
-            loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
+                # Real MRI classification
+                pred_real_mri = self.D_mri(real_mri)
+                real_labels = torch.ones_like(pred_real_mri)  # Previously 1.0
+                real_labels[real_labels == 1] = 1  # Ensure positive class is +1
 
-            # Fake MRI classification
-            pred_fake_mri = self.D_mri(fake_mri.detach())
-            fake_labels = torch.zeros_like(pred_fake_mri)  # Previously 0.0
-            fake_labels[fake_labels == 0] = -1  # Ensure negative class is -1
+                loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
 
-            loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
+                # Fake MRI classification
+                pred_fake_mri = self.D_mri(fake_mri.detach())
+                fake_labels = torch.zeros_like(pred_fake_mri)  # Previously 0.0
+                fake_labels[fake_labels == 0] = -1  # Ensure negative class is -1
 
-            loss_D = (loss_D_real + loss_D_fake) * 0.5
-            self.manual_backward(loss_D)
-            opt_d.step()
-        else:
-            # Train Discriminator
-            opt_d.zero_grad()
-            fake_mri, _ = self.G_ct2mri(real_ct)
-            pred_real_mri = self.D_mri(real_mri)
-            if self.loss_type == "bce":
-                real_labels_smooth = torch.full_like(pred_real_mri, 0.9)  # instead of 1.0
-                loss_D_real = self.criterion_GAN(pred_real_mri, real_labels_smooth)
+                loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
+
+                loss_D = (loss_D_real + loss_D_fake) * 0.5
+                self.manual_backward(loss_D)
+                opt_d.step()
             else:
-                # MSE
-                loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+                # Train Discriminator
+                opt_d.zero_grad()
+                fake_mri, _ = self.G_ct2mri(real_ct)
+                pred_real_mri = self.D_mri(real_mri)
+                if self.loss_type == "bce":
+                    real_labels_smooth = torch.full_like(pred_real_mri, 0.9)  # instead of 1.0
+                    loss_D_real = self.criterion_GAN(pred_real_mri, real_labels_smooth)
+                else:
+                    # MSE
+                    loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
 
 
-            pred_fake_mri = self.D_mri(fake_mri.detach())
-            loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
+                pred_fake_mri = self.D_mri(fake_mri.detach())
+                loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
 
-            loss_D = (loss_D_real + loss_D_fake) * 0.5
-            self.manual_backward(loss_D)
+                loss_D = (loss_D_real + loss_D_fake) * 0.5
+                self.manual_backward(loss_D)
 
-            # torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
-            opt_d.step()
+                # torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
+                opt_d.step()
 
 
         if batch_idx % 100 == 0:
@@ -133,7 +136,7 @@ class MedSynthGANModule(pl.LightningModule):
         #         f"ct_train_slice{batch_idx}.png",
         #         normalize=True
         #     )
-
+        self.step += 1
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
             self.G_ct2mri.parameters(),
@@ -204,7 +207,7 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=50,
+        default=100,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
@@ -218,7 +221,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=2e-5, #5e-5
+        default=5e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
