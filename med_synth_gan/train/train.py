@@ -68,7 +68,6 @@ class MedSynthGANModule(pl.LightningModule):
         # torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
         opt_g.step()
 
-
         if self.step % 2 == 0:
             if self.loss_type == "hinge":
                 # Train Discriminator
@@ -137,6 +136,7 @@ class MedSynthGANModule(pl.LightningModule):
         #         normalize=True
         #     )
         self.step += 1
+
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
             self.G_ct2mri.parameters(),
@@ -221,7 +221,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=5e-5, #5e-5
+        default=1e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
