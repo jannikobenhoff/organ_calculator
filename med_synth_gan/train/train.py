@@ -114,7 +114,7 @@ class MedSynthGANModule(pl.LightningModule):
                 opt_d.step()
 
 
-        if batch_idx % 100 == 0 and self.step % 2 == 0:
+        if batch_idx % 10 == 0 and self.step % 2 == 0:
             self.log('loss_G', loss_G, prog_bar=True)
             self.log('loss_D', loss_D, prog_bar=True)
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
@@ -167,7 +167,7 @@ class MedSynthGANModule(pl.LightningModule):
 
 class CustomProgressBar(TQDMProgressBar):
     def __init__(self):
-        super().__init__(refresh_rate=100, leave=True, process_position=0)  # Update every 10 batches
+        super().__init__(refresh_rate=10, leave=True, process_position=0)  # Update every 10 batches
 
     def init_train_tqdm(self):
         bar = super().init_train_tqdm()
@@ -221,7 +221,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5, #5e-5
+        default=1e-4, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
