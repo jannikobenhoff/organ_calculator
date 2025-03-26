@@ -130,21 +130,21 @@ class MedSynthGANModule(pl.LightningModule):
         #     )
         #self.step += 1
 
-    def elastic_deformation(self, img, alpha=40, sigma=6):
-        """Apply elastic deformation (2D) similar to B-spline warping."""
-        device = img.device
-        img_np = img.squeeze().cpu().numpy()
-        shape = img_np.shape
-
-        dx = cv2.GaussianBlur((np.random.rand(*shape) * 2 - 1), (0, 0), sigma) * alpha
-        dy = cv2.GaussianBlur((np.random.rand(*shape) * 2 - 1), (0, 0), sigma) * alpha
-
-        x, y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
-        map_x = (x + dx).astype(np.float32)
-        map_y = (y + dy).astype(np.float32)
-
-        distorted = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
-        return torch.tensor(distorted).unsqueeze(0).to(device)
+    # def elastic_deformation(self, img, alpha=40, sigma=6):
+    #     """Apply elastic deformation (2D) similar to B-spline warping."""
+    #     device = img.device
+    #     img_np = img.squeeze().cpu().numpy()
+    #     shape = img_np.shape
+    #
+    #     dx = cv2.GaussianBlur((np.random.rand(*shape) * 2 - 1), (0, 0), sigma) * alpha
+    #     dy = cv2.GaussianBlur((np.random.rand(*shape) * 2 - 1), (0, 0), sigma) * alpha
+    #
+    #     x, y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
+    #     map_x = (x + dx).astype(np.float32)
+    #     map_y = (y + dy).astype(np.float32)
+    #
+    #     distorted = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    #     return torch.tensor(distorted).unsqueeze(0).to(device)
 
     def augment_for_discriminator(self, image, crop_size=224):
         if image.ndim == 3:
@@ -159,8 +159,8 @@ class MedSynthGANModule(pl.LightningModule):
             img = TF.rotate(img, angle)
 
             # Elastic deformation
-            if random.random() > 0.5:
-                img = self.elastic_deformation(img, alpha=40, sigma=6)
+            # if random.random() > 0.5:
+            #     img = self.elastic_deformation(img, alpha=40, sigma=6)
 
             # Random crop to crop_size
             i, j, h, w = transforms.RandomCrop.get_params(img, output_size=(crop_size, crop_size))
