@@ -111,29 +111,54 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('lr_d', self.lr_d, prog_bar=True)
             self.log('lr_g', self.lr, prog_bar=True)
 
-        if batch_idx % 100 == 0:
-            vutils.save_image(
-                real_mri,
-                f"mri_train_slice{batch_idx}.png",
-                normalize=True
-            )
-            vutils.save_image(
-                real_ct,
-                f"ct_train_slice{batch_idx}.png",
-                normalize=True
-            )
+        # if batch_idx % 100 == 0:
+        #     vutils.save_image(
+        #         real_mri,
+        #         f"mri_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
+        #     vutils.save_image(
+        #         real_ct,
+        #         f"ct_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
         #self.step += 1
 
-    def augment_for_discriminator(self, image):
-        # Simple differentiable augmentations
-        if random.random() > 0.5:
-            image = TF.hflip(image)
-        if random.random() > 0.5:
-            image = TF.vflip(image)
-        if random.random() > 0.5:
+    def augment_for_discriminator(self, image, crop_size=224):
+        # Ensure input is 4D (B, C, H, W) even if it's a single image
+        if image.ndim == 3:
+            image = image.unsqueeze(0)
+
+        # Resize to 256x256 before crop
+        image = torch.nn.functional.interpolate(image, size=(256, 256), mode='bilinear', align_corners=False)
+
+        augmented_images = []
+        for img in image:
+            # Random rotation (±15 degrees)
             angle = random.uniform(-15, 15)
-            image = TF.rotate(image, angle)
-        return image
+            img = TF.rotate(img, angle)
+
+            # Random affine (translate up to 10%, scale ±10%)
+            img = TF.affine(img,
+                            angle=0,
+                            translate=(random.uniform(-0.1, 0.1) * img.shape[1],
+                                       random.uniform(-0.1, 0.1) * img.shape[2]),
+                            scale=random.uniform(0.9, 1.1),
+                            shear=0)
+
+            # Random crop
+            i, j, h, w = T.RandomCrop.get_params(img, output_size=(crop_size, crop_size))
+            img = TF.crop(img, i, j, h, w)
+
+            # Random brightness and contrast (for single channel)
+            brightness_factor = random.uniform(0.9, 1.1)
+            contrast_factor = random.uniform(0.9, 1.1)
+            img = TF.adjust_brightness(img, brightness_factor)
+            img = TF.adjust_contrast(img, contrast_factor)
+
+            augmented_images.append(img)
+
+        return torch.stack(augmented_images)
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
@@ -225,7 +250,7 @@ def parse_args(argv):
     parser.add_argument(
         "-loss_type",
         "--loss_type",
-        default="bce",  # bce, mse, hinge
+        default="mse",  # bce, mse, hinge
         type=str,
         help="Loss (default: %(default)s)",
     )
