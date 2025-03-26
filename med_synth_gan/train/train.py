@@ -12,6 +12,8 @@ from med_synth_gan.models.losses import Grad
 from med_synth_gan.inference.inference import VolumeInferenceCallback
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import torchvision.utils as vutils
+import torchvision.transforms.functional as TF
+import random
 
 
 class MedSynthGANModule(pl.LightningModule):
@@ -22,7 +24,7 @@ class MedSynthGANModule(pl.LightningModule):
         self.lr_d = lr_d
         self.lambda_grad = lambda_grad
         self.loss_type = loss_type
-        self.step = 0
+        #self.step = 0
         self.save_hyperparameters()
 
         # Models
@@ -68,53 +70,38 @@ class MedSynthGANModule(pl.LightningModule):
         # torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
         opt_g.step()
 
-        if self.step % 2 == 0:
-            if self.loss_type == "hinge":
-                # Train Discriminator
-                opt_d.zero_grad()
-                fake_mri, _ = self.G_ct2mri(real_ct)
+        #if self.step % 2 == 0:
 
-                # Real MRI classification
-                pred_real_mri = self.D_mri(real_mri)
-                real_labels = torch.ones_like(pred_real_mri)  # Previously 1.0
-                real_labels[real_labels == 1] = 1  # Ensure positive class is +1
+        # Train Discriminator
+        opt_d.zero_grad()
 
-                loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
+        fake_mri, _ = self.G_ct2mri(real_ct)
 
-                # Fake MRI classification
-                pred_fake_mri = self.D_mri(fake_mri.detach())
-                fake_labels = torch.zeros_like(pred_fake_mri)  # Previously 0.0
-                fake_labels[fake_labels == 0] = -1  # Ensure negative class is -1
+        real_mri_aug = self.augment_for_discriminator(real_mri)
+        fake_mri_aug = self.augment_for_discriminator(fake_mri.detach())
 
-                loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
+        pred_real_mri = self.D_mri(real_mri_aug)
+        pred_fake_mri = self.D_mri(fake_mri_aug)
 
-                loss_D = (loss_D_real + loss_D_fake) * 0.5
-                self.manual_backward(loss_D)
-                opt_d.step()
-            else:
-                # Train Discriminator
-                opt_d.zero_grad()
-                fake_mri, _ = self.G_ct2mri(real_ct)
-                pred_real_mri = self.D_mri(real_mri)
-                if self.loss_type == "bce":
-                    real_labels_smooth = torch.full_like(pred_real_mri, 0.9)  # instead of 1.0
-                    loss_D_real = self.criterion_GAN(pred_real_mri, real_labels_smooth)
-                else:
-                    # MSE
-                    loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+        if self.loss_type == "hinge":
+            real_labels = torch.full_like(pred_real_mri, 1)
+            fake_labels = torch.full_like(pred_fake_mri, -1)
+            loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
+            loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
+        elif self.loss_type == "bce":
+            real_labels = torch.full_like(pred_real_mri, 0.9)  # label smoothing
+            fake_labels = torch.zeros_like(pred_fake_mri)
+            loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
+            loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
+        else:  # MSE
+            loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+            loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
 
+        loss_D = 0.5 * (loss_D_real + loss_D_fake)
+        self.manual_backward(loss_D)
+        opt_d.step()
 
-                pred_fake_mri = self.D_mri(fake_mri.detach())
-                loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
-
-                loss_D = (loss_D_real + loss_D_fake) * 0.5
-                self.manual_backward(loss_D)
-
-                # torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 0.1)
-                opt_d.step()
-
-
-        if batch_idx % 10 == 0 and self.step % 2 == 0:
+        if batch_idx % 10 == 0 : #and self.step % 2 == 0:
             self.log('loss_G', loss_G, prog_bar=True)
             self.log('loss_D', loss_D, prog_bar=True)
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
@@ -124,18 +111,29 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('lr_d', self.lr_d, prog_bar=True)
             self.log('lr_g', self.lr, prog_bar=True)
 
-        # if batch_idx % 10 == 0:
-        #     vutils.save_image(
-        #         real_mri,
-        #         f"mri_train_slice{batch_idx}.png",
-        #         normalize=True
-        #     )
-        #     vutils.save_image(
-        #         real_ct,
-        #         f"ct_train_slice{batch_idx}.png",
-        #         normalize=True
-        #     )
-        self.step += 1
+        if batch_idx % 100 == 0:
+            vutils.save_image(
+                real_mri,
+                f"mri_train_slice{batch_idx}.png",
+                normalize=True
+            )
+            vutils.save_image(
+                real_ct,
+                f"ct_train_slice{batch_idx}.png",
+                normalize=True
+            )
+        #self.step += 1
+
+    def augment_for_discriminator(self, image):
+        # Simple differentiable augmentations
+        if random.random() > 0.5:
+            image = TF.hflip(image)
+        if random.random() > 0.5:
+            image = TF.vflip(image)
+        if random.random() > 0.5:
+            angle = random.uniform(-15, 15)
+            image = TF.rotate(image, angle)
+        return image
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
@@ -145,17 +143,9 @@ class MedSynthGANModule(pl.LightningModule):
 
         opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
 
-
-        # opt_g = torch.optim.Adam(
-        #     self.G_ct2mri.parameters(),
-        #     lr=self.lr, betas=(0.5, 0.999)
-        # )
-        # opt_d = torch.optim.Adam(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999))
-
         # scheduler_g = torch.optim.lr_scheduler.ExponentialLR(opt_g, gamma=0.98)
         # scheduler_d = torch.optim.lr_scheduler.ExponentialLR(opt_d, gamma=0.98)
 
-        # 3) Return them in the correct Lightning format
         return (
             [opt_g, opt_d]
             # ,
@@ -207,28 +197,28 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=100,
+        default=20,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=5e-6,
+        default=0,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-4, #5e-5
+        default=3e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-4, # should be larger than Generator for MSE 1e-4
+        default=3e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
