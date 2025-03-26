@@ -131,7 +131,8 @@ class MedSynthGANModule(pl.LightningModule):
         #self.step += 1
 
     def elastic_deformation(self, img, alpha=40, sigma=6):
-        """Apply elastic deformation (2D) similar to B-spline."""
+        """Apply elastic deformation (2D) similar to B-spline warping."""
+        device = img.device
         img_np = img.squeeze().cpu().numpy()
         shape = img_np.shape
 
@@ -143,7 +144,7 @@ class MedSynthGANModule(pl.LightningModule):
         map_y = (y + dy).astype(np.float32)
 
         distorted = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
-        return torch.tensor(distorted).unsqueeze(0)  # shape: [1, H, W]
+        return torch.tensor(distorted).unsqueeze(0).to(device)
 
     def augment_for_discriminator(self, image, crop_size=224):
         if image.ndim == 3:
