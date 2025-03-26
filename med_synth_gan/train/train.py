@@ -13,6 +13,11 @@ from med_synth_gan.inference.inference import VolumeInferenceCallback
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import torchvision.utils as vutils
 import torchvision.transforms.functional as TF
+import torch.nn.functional as F
+import random
+import math
+import numpy as np
+import cv2
 import random
 
 
@@ -124,41 +129,44 @@ class MedSynthGANModule(pl.LightningModule):
         #     )
         #self.step += 1
 
+    def elastic_deformation(img, alpha=40, sigma=6):
+        """Apply elastic deformation (2D) similar to B-spline."""
+        img_np = img.squeeze().cpu().numpy()
+        shape = img_np.shape
+
+        dx = cv2.GaussianBlur((np.random.rand(*shape) * 2 - 1), (0, 0), sigma) * alpha
+        dy = cv2.GaussianBlur((np.random.rand(*shape) * 2 - 1), (0, 0), sigma) * alpha
+
+        x, y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
+        map_x = (x + dx).astype(np.float32)
+        map_y = (y + dy).astype(np.float32)
+
+        distorted = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+        return torch.tensor(distorted).unsqueeze(0)  # shape: [1, H, W]
+
     def augment_for_discriminator(self, image, crop_size=224):
-        # Ensure input is 4D (B, C, H, W) even if it's a single image
         if image.ndim == 3:
             image = image.unsqueeze(0)
 
-        # Resize to 256x256 before crop
-        image = torch.nn.functional.interpolate(image, size=(256, 256), mode='bilinear', align_corners=False)
+        image = F.interpolate(image, size=(256, 256), mode='bilinear', align_corners=False)
 
-        augmented_images = []
+        augmented = []
         for img in image:
-            # Random rotation (±15 degrees)
-            angle = random.uniform(-15, 15)
+            # Random rotation (-30° to +30°)
+            angle = random.uniform(-30, 30)
             img = TF.rotate(img, angle)
 
-            # Random affine (translate up to 10%, scale ±10%)
-            img = TF.affine(img,
-                            angle=0,
-                            translate=(random.uniform(-0.1, 0.1) * img.shape[1],
-                                       random.uniform(-0.1, 0.1) * img.shape[2]),
-                            scale=random.uniform(0.9, 1.1),
-                            shear=0)
+            # Elastic deformation
+            if random.random() > 0.5:
+                img = elastic_deformation(img, alpha=40, sigma=6)
 
-            # Random crop
+            # Random crop to crop_size
             i, j, h, w = T.RandomCrop.get_params(img, output_size=(crop_size, crop_size))
             img = TF.crop(img, i, j, h, w)
 
-            # Random brightness and contrast (for single channel)
-            brightness_factor = random.uniform(0.9, 1.1)
-            contrast_factor = random.uniform(0.9, 1.1)
-            img = TF.adjust_brightness(img, brightness_factor)
-            img = TF.adjust_contrast(img, contrast_factor)
+            augmented.append(img)
 
-            augmented_images.append(img)
-
-        return torch.stack(augmented_images)
+        return torch.stack(augmented)
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
