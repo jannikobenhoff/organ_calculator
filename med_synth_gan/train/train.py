@@ -14,6 +14,7 @@ from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import torchvision.utils as vutils
 import torchvision.transforms.functional as TF
 import torch.nn.functional as F
+import torchvision.transforms as transforms
 import random
 import math
 import numpy as np
@@ -161,7 +162,7 @@ class MedSynthGANModule(pl.LightningModule):
                 img = self.elastic_deformation(img, alpha=40, sigma=6)
 
             # Random crop to crop_size
-            i, j, h, w = torchvision.transforms.RandomCrop.get_params(img, output_size=(crop_size, crop_size))
+            i, j, h, w = transforms.RandomCrop.get_params(img, output_size=(crop_size, crop_size))
             img = TF.crop(img, i, j, h, w)
 
             augmented.append(img)
