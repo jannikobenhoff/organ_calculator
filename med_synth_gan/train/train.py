@@ -165,10 +165,10 @@ class MedSynthGANModule(pl.LightningModule):
                 img = TF.vflip(img)
 
             # Random brightness and contrast
-            brightness_factor = random.uniform(0.8, 1.2)
-            contrast_factor = random.uniform(0.8, 1.2)
-            img = TF.adjust_brightness(img, brightness_factor)
-            img = TF.adjust_contrast(img, contrast_factor)
+            # brightness_factor = random.uniform(0.8, 1.2)
+            # contrast_factor = random.uniform(0.8, 1.2)
+            # img = TF.adjust_brightness(img, brightness_factor)
+            # img = TF.adjust_contrast(img, contrast_factor)
 
             # Gaussian noise
             if random.random() > 0.5:
@@ -206,7 +206,7 @@ class MedSynthGANModule(pl.LightningModule):
 
 class CustomProgressBar(TQDMProgressBar):
     def __init__(self):
-        super().__init__(refresh_rate=10, leave=True, process_position=0)  # Update every 10 batches
+        super().__init__(refresh_rate=50, leave=True, process_position=0)  # Update every 10 batches
 
     def init_train_tqdm(self):
         bar = super().init_train_tqdm()

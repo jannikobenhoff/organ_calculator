@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class UNet(nn.Module):
-    def __init__(self, input_channels=1, output_channels=1): # changed this to 2
+    def __init__(self, input_channels=1, output_channels=2):
         super().__init__()
         self.input_channels = input_channels
         self.output_channels = output_channels
@@ -48,13 +48,13 @@ class UNet(nn.Module):
         x1_1 = self.conv1_1(torch.cat([x1_0, self.up(x2_1)], 1))
         x0_1 = self.conv0_1(torch.cat([x0_0, self.up(x1_1)], 1))
  
-        scale_field = self.final(x0_1)
+        scalar_field_1, scalar_field_2 = self.final(x0_1)
 
-        # scale_field = scale_field + 1
+        # scalar_field = scalar_field + 1
 
-        output = (input + scale_field)
+        output = (input * scalar_field_1) + scalar_field_2
 
-        return output, scale_field
+        return output, scalar_field_1
 
 class VGGBlock(nn.Module):
     def __init__(self, in_channels, middle_channels, out_channels, stride = 1, relu='lrelu', dropout_prob=0.0):
