@@ -158,9 +158,23 @@ class MedSynthGANModule(pl.LightningModule):
             angle = random.uniform(-30, 30)
             img = TF.rotate(img, angle)
 
-            # Elastic deformation
-            # if random.random() > 0.5:
-            #     img = self.elastic_deformation(img, alpha=40, sigma=6)
+            # Random flip
+            if random.random() > 0.5:
+                img = TF.hflip(img)
+            if random.random() > 0.5:
+                img = TF.vflip(img)
+
+            # Random brightness and contrast
+            brightness_factor = random.uniform(0.8, 1.2)
+            contrast_factor = random.uniform(0.8, 1.2)
+            img = TF.adjust_brightness(img, brightness_factor)
+            img = TF.adjust_contrast(img, contrast_factor)
+
+            # Gaussian noise
+            if random.random() > 0.5:
+                noise = torch.randn_like(img) * 0.1
+                img = img + noise
+                img = torch.clamp(img, 0, 1)
 
             # Random crop to crop_size
             i, j, h, w = transforms.RandomCrop.get_params(img, output_size=(crop_size, crop_size))
@@ -246,14 +260,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=2e-5, #5e-5
+        default=3e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=5e-5, # should be larger than Generator for MSE 1e-4
+        default=3e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
