@@ -47,10 +47,11 @@ class UNet(nn.Module):
         x2_1 = self.conv2_1(torch.cat([x2_0, self.up(x3_1)], 1))
         x1_1 = self.conv1_1(torch.cat([x1_0, self.up(x2_1)], 1))
         x0_1 = self.conv0_1(torch.cat([x0_0, self.up(x1_1)], 1))
- 
-        scalar_field_1, scalar_field_2 = self.final(x0_1)
 
-        # scalar_field = scalar_field + 1
+        output_fields = self.final(x0_1)  # tensor with 2 channels
+
+        scalar_field_1 = output_fields[:, 0:1, :, :]
+        scalar_field_2 = output_fields[:, 1:2, :, :]
 
         output = (input * scalar_field_1) + scalar_field_2
 
