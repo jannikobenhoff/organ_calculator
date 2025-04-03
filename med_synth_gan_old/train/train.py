@@ -1,4 +1,3 @@
-import os
 import argparse
 import sys
 import torch
@@ -12,48 +11,17 @@ from med_synth_gan.models.cycle_gan import Discriminator
 from med_synth_gan.models.losses import Grad
 from med_synth_gan.inference.inference import VolumeInferenceCallback
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
+import torchvision.utils as vutils
+import torchvision.transforms.functional as TF
+import torch.nn.functional as F
+import torchvision.transforms as transforms
 import random
-import kornia.augmentation as K
+import math
+import numpy as np
+import cv2
+import random
 
-def random_flip_rot_crop(batch,):
-    B, C, H, W = batch.shape
 
-    augmented_images = []
-    for i in range(B):
-        img = batch[i]
-
-        # Random horizontal flip
-        if random.random() < 0.5:
-            img = torch.flip(img, dims=[2])  # Flip width dimension
-
-        # Random vertical flip
-        if random.random() < 0.5:
-            img = torch.flip(img, dims=[1])  # Flip height dimension
-
-        # Random rotation by 0, 90, 180, or 270 degrees
-        k = random.randint(0, 3)
-        if k > 0:
-            img = torch.rot90(img, k, dims=(1, 2))
-
-        # After rotation, update image dimensions
-        _, h_img, w_img = img.shape
-
-        augmented_images.append(img)
-
-    augmented_batch = torch.stack(augmented_images)
-    return augmented_batch
-def set_requires_grad(nets, requires_grad=False):
-    """Set requies_grad=Fasle for all the networks to avoid unnecessary computations
-    Parameters:
-        nets (network list)   -- a list of networks
-        requires_grad (bool)  -- whether the networks require gradients or not
-    """
-    if not isinstance(nets, list):
-        nets = [nets]
-    for net in nets:
-        if net is not None:
-            for param in net.parameters():
-                param.requires_grad = requires_grad
 class MedSynthGANModule(pl.LightningModule):
     def __init__(self, lr, lr_d, lambda_grad, loss_type="mse"):
         super().__init__()
@@ -62,7 +30,7 @@ class MedSynthGANModule(pl.LightningModule):
         self.lr_d = lr_d
         self.lambda_grad = lambda_grad
         self.loss_type = loss_type
-        self.disc_step = 0
+        #self.step = 0
         self.save_hyperparameters()
 
         # Models
@@ -79,15 +47,7 @@ class MedSynthGANModule(pl.LightningModule):
         elif loss_type == "hinge":
             self.criterion_GAN = nn.HingeEmbeddingLoss(margin=1)
         self.criterion_grad = Grad(penalty='l1')
-        self.grad_scaler = torch.cuda.amp.GradScaler()
-        H,W = 256,256
-        self.aug = torch.nn.Sequential(
-            K.RandomHorizontalFlip(p=0.3),
-            K.RandomVerticalFlip(p=0.3),
-            K.RandomRotation(degrees=180.0,p=0.3),
-            K.RandomResizedCrop(size=(H, W), scale=(0.8, 1.0),p=0.3),
-            K.RandomPerspective(distortion_scale=0.5, p=0.3),
-        ).cuda()
+
 
     def forward(self, ct_image):
         return self.G_ct2mri(ct_image)
@@ -99,46 +59,56 @@ class MedSynthGANModule(pl.LightningModule):
         # Get optimizers
         opt_g, opt_d = self.optimizers()
         real_ct, real_mri = batch
-        # set_requires_grad(self.D_mri, False)
-        with (torch.autocast('cuda', enabled=True)):
-            fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
-            pred_fake_mri = self.D_mri(fake_mri)
+        real_mri = real_mri[:4]
+
+        opt_g.zero_grad()
+        fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
+
+        pred_fake_mri = self.D_mri(fake_mri)
+        if self.loss_type == "hinge":
+            loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.full_like(pred_fake_mri, 1))  # Ensure +1 target
+        else:
             loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
 
-            loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
-            loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
-        opt_g.optimizer.zero_grad(set_to_none=True)
-        self.grad_scaler.scale(loss_G).backward()
-        self.grad_scaler.unscale_(opt_g.optimizer)
-        # network_norm = torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 1)
-        self.grad_scaler.step(opt_g.optimizer)
-        self.grad_scaler.update()
-        opt_g.optimizer.zero_grad(set_to_none=True)
+        loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
+        loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
+        self.manual_backward(loss_G)
 
-        # if self.disc_step % 2 == 0:
+        # torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 0.1)
+        opt_g.step()
+
+        #if self.step % 2 == 0:
+
         # Train Discriminator
-        # set_requires_grad(self.D_mri, True)
-        with (torch.autocast('cuda', enabled=True)):
-            fake_mri, _ = self.G_ct2mri(real_ct[:4])
+        opt_d.zero_grad()
 
-            fake_mri = self.aug(fake_mri)
-            real_mri = self.aug(real_mri)
+        fake_mri, _ = self.G_ct2mri(real_ct)
 
-            pred_real_mri = self.D_mri(real_mri)
+        real_mri_aug = self.augment_for_discriminator(real_mri)
+        fake_mri_aug = self.augment_for_discriminator(fake_mri.detach())
+
+        pred_real_mri = self.D_mri(real_mri_aug)
+        pred_fake_mri = self.D_mri(fake_mri_aug)
+
+        if self.loss_type == "hinge":
+            real_labels = torch.full_like(pred_real_mri, 1)
+            fake_labels = torch.full_like(pred_fake_mri, -1)
+            loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
+            loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
+        elif self.loss_type == "bce":
+            real_labels = torch.full_like(pred_real_mri, 0.9)  # label smoothing
+            fake_labels = torch.zeros_like(pred_fake_mri)
+            loss_D_real = self.criterion_GAN(pred_real_mri, real_labels)
+            loss_D_fake = self.criterion_GAN(pred_fake_mri, fake_labels)
+        else:  # MSE
             loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
-            pred_fake_mri = self.D_mri(fake_mri.detach())
             loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
-            loss_D = (loss_D_real + loss_D_fake) * 0.5
 
-        opt_d.optimizer.zero_grad(set_to_none=True)
-        self.grad_scaler.scale(loss_D).backward()
-        self.grad_scaler.unscale_(opt_d.optimizer)
-        network_norm = torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 1)
-        self.grad_scaler.step(opt_d.optimizer)
-        self.grad_scaler.update()
-        opt_d.optimizer.zero_grad(set_to_none=True)
+        loss_D = 0.5 * (loss_D_real + loss_D_fake)
+        self.manual_backward(loss_D)
+        opt_d.step()
 
-        if batch_idx % 10 == 0:
+        if batch_idx % 10 == 0 : #and self.step % 2 == 0:
             self.log('loss_G', loss_G, prog_bar=True)
             self.log('loss_D', loss_D, prog_bar=True)
             self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
@@ -148,24 +118,96 @@ class MedSynthGANModule(pl.LightningModule):
             self.log('lr_d', self.lr_d, prog_bar=True)
             self.log('lr_g', self.lr, prog_bar=True)
 
-        self.disc_step += 1
-        self.trainer.fit_loop.epoch_loop.manual_optimization.optim_step_progress.total.completed += 1
+        # if batch_idx % 100 == 0:
+        #     vutils.save_image(
+        #         real_mri,
+        #         f"mri_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
+        #     vutils.save_image(
+        #         real_ct,
+        #         f"ct_train_slice{batch_idx}.png",
+        #         normalize=True
+        #     )
+        #self.step += 1
+
+    # def elastic_deformation(self, img, alpha=40, sigma=6):
+    #     """Apply elastic deformation (2D) similar to B-spline warping."""
+    #     device = img.device
+    #     img_np = img.squeeze().cpu().numpy()
+    #     shape = img_np.shape
+    #
+    #     dx = cv2.GaussianBlur((np.random.rand(*shape) * 2 - 1), (0, 0), sigma) * alpha
+    #     dy = cv2.GaussianBlur((np.random.rand(*shape) * 2 - 1), (0, 0), sigma) * alpha
+    #
+    #     x, y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
+    #     map_x = (x + dx).astype(np.float32)
+    #     map_y = (y + dy).astype(np.float32)
+    #
+    #     distorted = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    #     return torch.tensor(distorted).unsqueeze(0).to(device)
+
+    def augment_for_discriminator(self, image, crop_size=224):
+        if image.ndim == 3:
+            image = image.unsqueeze(0)
+
+        image = F.interpolate(image, size=(256, 256), mode='bilinear', align_corners=False)
+
+        augmented = []
+        for img in image:
+            # Random rotation (-30° to +30°)
+            angle = random.uniform(-30, 30)
+            img = TF.rotate(img, angle)
+
+            # Random flip
+            if random.random() > 0.5:
+                img = TF.hflip(img)
+            if random.random() > 0.5:
+                img = TF.vflip(img)
+
+            # Random brightness and contrast
+            # brightness_factor = random.uniform(0.8, 1.2)
+            # contrast_factor = random.uniform(0.8, 1.2)
+            # img = TF.adjust_brightness(img, brightness_factor)
+            # img = TF.adjust_contrast(img, contrast_factor)
+
+            # Gaussian noise
+            # if random.random() > 0.5:
+            #     noise = torch.randn_like(img) * 0.1
+            #     img = img + noise
+            #     img = torch.clamp(img, 0, 1)
+
+            # Random crop to crop_size
+            # i, j, h, w = transforms.RandomCrop.get_params(img, output_size=(crop_size, crop_size))
+            # img = TF.crop(img, i, j, h, w)
+
+            augmented.append(img)
+
+        return torch.stack(augmented)
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
             self.G_ct2mri.parameters(),
-            lr=self.lr, betas=(0.5, 0.999), weight_decay=0  # 0.01
+            lr=self.lr, betas=(0.9, 0.95), weight_decay=0.001  # 0.01
         )
 
-        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999), weight_decay=0)  # 0.01
+        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.9, 0.95), weight_decay=0.001)  # 0.01
+
+        # scheduler_g = torch.optim.lr_scheduler.ExponentialLR(opt_g, gamma=0.98)
+        # scheduler_d = torch.optim.lr_scheduler.ExponentialLR(opt_d, gamma=0.98)
 
         return (
             [opt_g, opt_d]
+            # ,
+            # [
+            #     {"scheduler": scheduler_g, "interval": "epoch", "frequency": 1, "name": "lr_g"},
+            #     {"scheduler": scheduler_d, "interval": "epoch", "frequency": 1, "name": "lr_d"},
+            # ]
         )
 
 class CustomProgressBar(TQDMProgressBar):
     def __init__(self):
-        super().__init__(refresh_rate=10, leave=True, process_position=0)  # Update every 10 batches
+        super().__init__(refresh_rate=50, leave=True, process_position=0)  # Update every 10 batches
 
     def init_train_tqdm(self):
         bar = super().init_train_tqdm()
@@ -205,7 +247,7 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=30,
+        default=100,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
@@ -219,14 +261,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=8e-5 , #5e-5
+        default=5e-5, #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default= 8e-5,  # should be larger than Generator for MSE 1e-4
+        default=4e-5, # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -259,11 +301,11 @@ def main(argv):
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
-        num_workers=0,
+        num_workers=4,
         shuffle=True,
         collate_fn=collate_fn,
         pin_memory=True,
-        # prefetch_factor=2
+        prefetch_factor=2
     )
 
     # Initialize model and trainer
@@ -281,7 +323,7 @@ def main(argv):
         max_epochs=args.epochs,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1,
-        precision="32",
+        precision="16-mixed",
         callbacks=[
             CustomProgressBar(),
             inference_callback
