@@ -215,8 +215,6 @@ nest_asyncio @ file:///home/conda/feedstock_root/build_artifacts/nest-asyncio_17
 networkx==3.3
 nibabel==5.3.2
 nltk==3.9.1
-# Editable install with no version control (nnunetv2==2.5.1)
--e /Users/jannik/Projects/cornell_tech/organ-calculator/nnUNet
 node2vec==0.5.0
 nodeenv==1.9.1
 notebook @ file:///home/conda/feedstock_root/build_artifacts/notebook_1724861303656/work
