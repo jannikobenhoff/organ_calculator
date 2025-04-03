@@ -78,27 +78,59 @@ class Discriminator(nn.Module):
         model = [
             nn.Conv2d(input_nc, ndf, kernel_size=3, stride=2, padding=1),
             # nn.InstanceNorm2d(ndf),
-            nn.LeakyReLU(0.01, inplace=True)
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(ndf, ndf, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm2d(ndf),
+            nn.LeakyReLU(0.2, inplace=True)
+
         ]
         
         model += [
             nn.Conv2d(ndf, ndf*2, kernel_size=3, stride=2, padding=1),
             nn.InstanceNorm2d(ndf*2),
-            nn.LeakyReLU(0.01, inplace=True)
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(ndf*2, ndf*2, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm2d(ndf*2),
+            nn.LeakyReLU(0.2, inplace=True)
+
         ]
         
         model += [
             nn.Conv2d(ndf*2, ndf*4, kernel_size=3, stride=2, padding=1),
             nn.InstanceNorm2d(ndf*4),
-            nn.LeakyReLU(0.01, inplace=True)
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(ndf*4, ndf*4, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm2d(ndf*4),
+            nn.LeakyReLU(0.2, inplace=True)
+
         ]
         
         # We reduce further for a 70x70 patch
         model += [
-            nn.Conv2d(ndf*4, ndf*8, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(ndf*4, ndf*8, kernel_size=3, stride=2, padding=1),
             nn.InstanceNorm2d(ndf*8),
-            nn.LeakyReLU(0.01, inplace=True)
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(ndf*8, ndf*8, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm2d(ndf*8),
+            nn.LeakyReLU(0.2, inplace=True)
+
         ]
+        model += [
+            nn.Conv2d(ndf*8, ndf*8, kernel_size=3, stride=2, padding=1),
+            nn.InstanceNorm2d(ndf*8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(ndf*8, ndf*8, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm2d(ndf*8),
+            nn.LeakyReLU(0.2, inplace=True)
+
+        ]
+
+        model += [
+            nn.Conv2d(ndf*8, ndf*8, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm2d(ndf*8),
+            nn.LeakyReLU(0.2, inplace=True)
+        ]
+
 
         # Output 1 channel prediction map
         model += [nn.Conv2d(ndf*8, 1, kernel_size=3, stride=1, padding=1)]
