@@ -1,10 +1,8 @@
-import os
 import argparse
 import sys
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
-from sympy import false
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
 from med_synth_gan.models.models import UNet
@@ -42,6 +40,7 @@ def random_flip_rot_crop(batch,):
 
     augmented_batch = torch.stack(augmented_images)
     return augmented_batch
+
 def set_requires_grad(nets, requires_grad=False):
     """Set requies_grad=Fasle for all the networks to avoid unnecessary computations
     Parameters:
@@ -54,6 +53,7 @@ def set_requires_grad(nets, requires_grad=False):
         if net is not None:
             for param in net.parameters():
                 param.requires_grad = requires_grad
+
 class MedSynthGANModule(pl.LightningModule):
     def __init__(self, lr, lr_d, lambda_grad, loss_type="mse"):
         super().__init__()
