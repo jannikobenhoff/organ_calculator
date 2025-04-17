@@ -2,16 +2,17 @@ import argparse
 import sys
 import torch
 import torch.nn as nn
-import pytorch_lightning as pl
+# import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
 from med_synth_gan.models.models import UNet
 from med_synth_gan.models.cycle_gan import Discriminator
 from med_synth_gan.models.losses import Grad
-from med_synth_gan.inference.inference import VolumeInferenceCallback
-from pytorch_lightning.callbacks.progress import TQDMProgressBar
+from med_synth_gan.inference.inference import VolumeInference
+# from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import random
 import kornia.augmentation as K
+from tqdm import tqdm
 
 def random_flip_rot_crop(batch,):
     B, C, H, W = batch.shape
@@ -54,7 +55,7 @@ def set_requires_grad(nets, requires_grad=False):
             for param in net.parameters():
                 param.requires_grad = requires_grad
 
-class MedSynthGANModule(pl.LightningModule):
+class MedSynthGANModule(nn.Module):
     def __init__(self, lr, lr_d, lambda_grad, loss_type="mse"):
         super().__init__()
         self.automatic_optimization = False
@@ -92,64 +93,96 @@ class MedSynthGANModule(pl.LightningModule):
     def forward(self, ct_image):
         return self.G_ct2mri(ct_image)
 
-    def training_step(self, batch, batch_idx):
-        if batch is None:
-            return None
+    def generator_step(self, real_ct):
+        with torch.autocast('cuda', enabled=True):
+            fake_mri, scale_field = self.G_ct2mri(real_ct)
+            pred_fake = self.D_mri(fake_mri)
+            loss_gan = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake))
+            loss_grad = self.criterion_grad.loss(None, scale_field) * self.lambda_grad
+            loss_G = loss_gan + loss_grad
 
-        # Get optimizers
-        opt_g, opt_d = self.optimizers()
-        real_ct, real_mri = batch
-        # set_requires_grad(self.D_mri, False)
-        with (torch.autocast('cuda', enabled=True)):
-            fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
-            pred_fake_mri = self.D_mri(fake_mri)
-            loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
-
-            loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
-            loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
-        opt_g.optimizer.zero_grad(set_to_none=True)
+        self.opt_g.zero_grad()
         self.grad_scaler.scale(loss_G).backward()
-        self.grad_scaler.unscale_(opt_g.optimizer)
-        # network_norm = torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 1)
-        self.grad_scaler.step(opt_g.optimizer)
+        self.grad_scaler.step(self.opt_g)
         self.grad_scaler.update()
-        opt_g.optimizer.zero_grad(set_to_none=True)
+        return loss_G.item()
 
-        # if self.disc_step % 2 == 0:
-        # Train Discriminator
-        # set_requires_grad(self.D_mri, True)
-        with (torch.autocast('cuda', enabled=True)):
-            fake_mri, _ = self.G_ct2mri(real_ct[:4])
-
+    def discriminator_step(self, real_ct, real_mri):
+        with torch.autocast('cuda', enabled=True):
+            fake_mri = self.G_ct2mri(real_ct[:4])[0].detach()
             fake_mri = self.aug(fake_mri)
             real_mri = self.aug(real_mri)
 
-            pred_real_mri = self.D_mri(real_mri)
-            loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
-            pred_fake_mri = self.D_mri(fake_mri.detach())
-            loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
-            loss_D = (loss_D_real + loss_D_fake) * 0.5
+            pred_real = self.D_mri(real_mri)
+            loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real))
+            pred_fake = self.D_mri(fake_mri)
+            loss_fake = self.criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
+            loss_D = (loss_real + loss_fake) * 0.5
 
-        opt_d.optimizer.zero_grad(set_to_none=True)
+        self.opt_d.zero_grad()
         self.grad_scaler.scale(loss_D).backward()
-        self.grad_scaler.unscale_(opt_d.optimizer)
-        network_norm = torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 1)
-        self.grad_scaler.step(opt_d.optimizer)
+        self.grad_scaler.step(self.opt_d)
         self.grad_scaler.update()
-        opt_d.optimizer.zero_grad(set_to_none=True)
-
-        if batch_idx % 10 == 0:
-            self.log('loss_G', loss_G, prog_bar=True)
-            self.log('loss_D', loss_D, prog_bar=True)
-            self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
-            self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
-            self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
-            #self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
-            self.log('lr_d', self.lr_d, prog_bar=True)
-            self.log('lr_g', self.lr, prog_bar=True)
-
-        self.disc_step += 1
-        self.trainer.fit_loop.epoch_loop.manual_optimization.optim_step_progress.total.completed += 1
+        return loss_D.item()
+    #
+    # def training_step(self, batch, batch_idx):
+    #     if batch is None:
+    #         return None
+    #
+    #     # Get optimizers
+    #     opt_g, opt_d = self.optimizers()
+    #     real_ct, real_mri = batch
+    #     # set_requires_grad(self.D_mri, False)
+    #     with (torch.autocast('cuda', enabled=True)):
+    #         fake_mri, scale_field_ct2mri = self.G_ct2mri(real_ct)
+    #         pred_fake_mri = self.D_mri(fake_mri)
+    #         loss_GAN_ct2mri = self.criterion_GAN(pred_fake_mri, torch.ones_like(pred_fake_mri))
+    #
+    #         loss_grad_ct2mri = self.criterion_grad.loss(None, scale_field_ct2mri) * self.lambda_grad
+    #         loss_G = loss_GAN_ct2mri + loss_grad_ct2mri
+    #     opt_g.optimizer.zero_grad(set_to_none=True)
+    #     self.grad_scaler.scale(loss_G).backward()
+    #     self.grad_scaler.unscale_(opt_g.optimizer)
+    #     # network_norm = torch.nn.utils.clip_grad_norm_(self.G_ct2mri.parameters(), 1)
+    #     self.grad_scaler.step(opt_g.optimizer)
+    #     self.grad_scaler.update()
+    #     opt_g.optimizer.zero_grad(set_to_none=True)
+    #
+    #     # if self.disc_step % 2 == 0:
+    #     # Train Discriminator
+    #     # set_requires_grad(self.D_mri, True)
+    #     with (torch.autocast('cuda', enabled=True)):
+    #         fake_mri, _ = self.G_ct2mri(real_ct[:4])
+    #
+    #         fake_mri = self.aug(fake_mri)
+    #         real_mri = self.aug(real_mri)
+    #
+    #         pred_real_mri = self.D_mri(real_mri)
+    #         loss_D_real = self.criterion_GAN(pred_real_mri, torch.ones_like(pred_real_mri))
+    #         pred_fake_mri = self.D_mri(fake_mri.detach())
+    #         loss_D_fake = self.criterion_GAN(pred_fake_mri, torch.zeros_like(pred_fake_mri))
+    #         loss_D = (loss_D_real + loss_D_fake) * 0.5
+    #
+    #     opt_d.optimizer.zero_grad(set_to_none=True)
+    #     self.grad_scaler.scale(loss_D).backward()
+    #     self.grad_scaler.unscale_(opt_d.optimizer)
+    #     network_norm = torch.nn.utils.clip_grad_norm_(self.D_mri.parameters(), 1)
+    #     self.grad_scaler.step(opt_d.optimizer)
+    #     self.grad_scaler.update()
+    #     opt_d.optimizer.zero_grad(set_to_none=True)
+    #
+    #     if batch_idx % 10 == 0:
+    #         self.log('loss_G', loss_G, prog_bar=True)
+    #         self.log('loss_D', loss_D, prog_bar=True)
+    #         self.log('scalar_field_mean', scale_field_ct2mri.mean(), prog_bar=True)
+    #         self.log('scalar_field_min', scale_field_ct2mri.min(), prog_bar=True)
+    #         self.log('scalar_field_max', scale_field_ct2mri.max(), prog_bar=True)
+    #         #self.log('tv_loss', loss_grad_ct2mri, prog_bar=True)
+    #         self.log('lr_d', self.lr_d, prog_bar=True)
+    #         self.log('lr_g', self.lr, prog_bar=True)
+    #
+    #     self.disc_step += 1
+    #     self.trainer.fit_loop.epoch_loop.manual_optimization.optim_step_progress.total.completed += 1
 
     def configure_optimizers(self):
         opt_g = torch.optim.AdamW(
@@ -163,27 +196,27 @@ class MedSynthGANModule(pl.LightningModule):
             [opt_g, opt_d]
         )
 
-class CustomProgressBar(TQDMProgressBar):
-    def __init__(self):
-        super().__init__(refresh_rate=10, leave=True, process_position=0)  # Update every 10 batches
-
-    def init_train_tqdm(self):
-        bar = super().init_train_tqdm()
-        bar.set_description("Training")
-        return bar
-
-    def get_metrics(self, *args, **kwargs):
-        items = super().get_metrics(*args, **kwargs)
-        return {
-            "loss_G": items.get("loss_G", ""),
-            "loss_D": items.get("loss_D", ""),
-            "sf_mean": items.get("scalar_field_mean", ""),
-            "sf_min": items.get("scalar_field_min", ""),
-            "sf_max": items.get("scalar_field_max", ""),
-            #"lr_g": items.get("lr_g", ""),
-            #"lr_d": items.get("lr_d", ""),
-            # "tv_loss": items.get("tv_loss", ""),
-        }
+# class CustomProgressBar(TQDMProgressBar):
+#     def __init__(self):
+#         super().__init__(refresh_rate=10, leave=True, process_position=0)  # Update every 10 batches
+#
+#     def init_train_tqdm(self):
+#         bar = super().init_train_tqdm()
+#         bar.set_description("Training")
+#         return bar
+#
+#     def get_metrics(self, *args, **kwargs):
+#         items = super().get_metrics(*args, **kwargs)
+#         return {
+#             "loss_G": items.get("loss_G", ""),
+#             "loss_D": items.get("loss_D", ""),
+#             "sf_mean": items.get("scalar_field_mean", ""),
+#             "sf_min": items.get("scalar_field_min", ""),
+#             "sf_max": items.get("scalar_field_max", ""),
+#             #"lr_g": items.get("lr_g", ""),
+#             #"lr_d": items.get("lr_d", ""),
+#             # "tv_loss": items.get("tv_loss", ""),
+#         }
 
 def collate_fn(batch):
     # Filter out None values
@@ -242,9 +275,60 @@ def parse_args(argv):
     return args
 
 
+# def main(argv):
+#     args = parse_args(argv)
+#
+#     print("Starting MedSynthGAN training with args: {}".format(args), flush=True)
+#
+#     train_dataset = CtMri2DDataset(
+#         ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
+#         mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
+#         slice_axis=2
+#     )
+#
+#     print("Finished loading {} training samples".format(len(train_dataset)), flush=True)
+#
+#     # Create the DataLoader
+#     train_dataloader = DataLoader(
+#         train_dataset,
+#         batch_size=args.batch_size,
+#         num_workers=0,
+#         shuffle=True,
+#         collate_fn=collate_fn,
+#         pin_memory=True,
+#         # prefetch_factor=2
+#     )
+#
+#     # Initialize model and trainer
+#     model = MedSynthGANModule(lr=args.learning_rate, lr_d=args.learning_rate_discriminator,
+#                               lambda_grad=args.lambda_grad, loss_type=args.loss_type)
+#
+#     # Inference
+#     inference_callback = VolumeInferenceCallback(
+#         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
+#         output_dir="inference_{}_{}_{}_{}".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator, args.lambda_grad),
+#     )
+#
+#     trainer = pl.Trainer(
+#         default_root_dir='checkpoints',
+#         max_epochs=args.epochs,
+#         accelerator="gpu" if torch.cuda.is_available() else "cpu",
+#         devices=1,
+#         precision="32",
+#         callbacks=[
+#             CustomProgressBar(),
+#             inference_callback
+#         ],
+#     )
+#
+#     # Train the model
+#     trainer.fit(model, train_dataloader)
+#
+#     return model
+
 def main(argv):
     args = parse_args(argv)
-
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Starting MedSynthGAN training with args: {}".format(args), flush=True)
 
     train_dataset = CtMri2DDataset(
@@ -253,45 +337,56 @@ def main(argv):
         slice_axis=2
     )
 
-    print("Finished loading {} training samples".format(len(train_dataset)), flush=True)
+    # Initialize module
+    model = MedSynthGANModule(
+        loss_type=args.loss_type,
+        lambda_grad=args.lambda_grad,
+        lr=args.learning_rate,
+        lr_d=args.learning_rate_discriminator,
+    ).to(device)
 
-    # Create the DataLoader
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=0,
-        shuffle=True,
-        collate_fn=collate_fn,
-        pin_memory=True,
-        # prefetch_factor=2
-    )
-
-    # Initialize model and trainer
-    model = MedSynthGANModule(lr=args.learning_rate, lr_d=args.learning_rate_discriminator,
-                              lambda_grad=args.lambda_grad, loss_type=args.loss_type)
-
-    # Inference
-    inference_callback = VolumeInferenceCallback(
+    inferencer = VolumeInference(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
         output_dir="inference_{}_{}_{}_{}".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator, args.lambda_grad),
+        device=device
     )
+    train_dataloader = DataLoader(
+            train_dataset,
+            batch_size=args.batch_size,
+            num_workers=0,
+            shuffle=True,
+            collate_fn=collate_fn,
+            pin_memory=True,
+            # prefetch_factor=2
+        )
 
-    trainer = pl.Trainer(
-        default_root_dir='checkpoints',
-        max_epochs=args.epochs,
-        accelerator="gpu" if torch.cuda.is_available() else "cpu",
-        devices=1,
-        precision="32",
-        callbacks=[
-            CustomProgressBar(),
-            inference_callback
-        ],
-    )
+    # Training loop
+    for epoch in range(args.epochs):
+        model.train()
+        progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch + 1}")
 
-    # Train the model
-    trainer.fit(model, train_dataloader)
+        for batch_idx, (real_ct, real_mri) in enumerate(progress_bar):
+            real_ct = real_ct.to(device)
+            real_mri = real_mri.to(device)
 
-    return model
+            # Generator update
+            loss_G = model.generator_step(real_ct)
+
+            # Discriminator update
+            if batch_idx % 2 == 0:  # Update discriminator less frequently
+                loss_D = model.discriminator_step(real_ct, real_mri)
+
+            # Update progress bar
+            progress_bar.set_postfix({
+                'loss_G': f"{loss_G:.4f}",
+                'loss_D': f"{loss_D:.4f}"
+            })
+
+        # Save checkpoint and run inference
+        inferencer.run_inference(model, epoch)
+
+    # Save final grid
+    inferencer.save_final_grid()
 
 
 if __name__ == "__main__":

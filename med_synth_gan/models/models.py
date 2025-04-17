@@ -5,7 +5,7 @@ import torch.nn as nn
 
 
 class UNet(nn.Module):
-    def __init__(self, input_channels=1, output_channels=1,is_disc = False): # changed this to 2
+    def __init__(self, input_channels=1, output_channels=1, is_disc = False): # changed this to 2
         super().__init__()
         self.input_channels = input_channels
         self.output_channels = output_channels
