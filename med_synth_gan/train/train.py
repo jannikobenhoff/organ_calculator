@@ -63,14 +63,15 @@ class MedSynthGANModule(nn.Module):
         self.lr_d = lr_d
         self.lambda_grad = lambda_grad
         self.loss_type = loss_type
-        self.disc_step = 0
-        self.save_hyperparameters()
+        #self.disc_step = 0
+        #self.save_hyperparameters()
 
         # Models
         self.G_ct2mri = UNet()
-        # self.G_mri2ct = UNet()
         self.D_mri = Discriminator()
-        # self.D_ct = Discriminator()
+
+        self.opt_g = torch.optim.AdamW(self.G_ct2mri.parameters(), lr=lr)
+        self.opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=lr_d)
 
         # Loss functions
         if loss_type == "bce":
