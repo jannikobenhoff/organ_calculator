@@ -81,7 +81,8 @@ class MedSynthGANModule(nn.Module):
         elif loss_type == "hinge":
             self.criterion_GAN = nn.HingeEmbeddingLoss(margin=1)
         self.criterion_grad = Grad(penalty='l1')
-        self.grad_scaler = torch.cuda.amp.GradScaler()
+        self.grad_scaler = torch.amp.GradScaler('cuda')
+
         H,W = 256,256
         self.aug = torch.nn.Sequential(
             K.RandomHorizontalFlip(p=0.3),
@@ -253,14 +254,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5 , #5e-5
+        default=5e-5 , #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default= 2e-5,  # should be larger than Generator for MSE 1e-4
+        default= 3e-5,  # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
