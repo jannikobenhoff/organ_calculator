@@ -240,7 +240,7 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=50,
+        default=100,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
@@ -254,14 +254,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5 , #5e-5
+        default=5e-6 , #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default= 5e-5,  # should be larger than Generator for MSE 1e-4
+        default= 1e-6,  # should be larger than Generator for MSE 1e-4
         type=float,
         help="Learning rate (default: %(default)s)",
     )
