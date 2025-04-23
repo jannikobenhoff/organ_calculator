@@ -240,7 +240,7 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=50,
+        default=100,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
