@@ -247,14 +247,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=1e-6,
+        default=1e-7,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=3e-5 , #5e-5
+        default=1e-5 , #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
