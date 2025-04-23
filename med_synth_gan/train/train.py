@@ -240,7 +240,7 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=100,
+        default=30,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
@@ -254,7 +254,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5 , #5e-5
+        default=3e-5 , #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
