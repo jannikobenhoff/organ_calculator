@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
 from med_synth_gan.models.models import UNet
+from med_synth_gan.train.saver import SaveBestModel
 from med_synth_gan.models.cycle_gan import Discriminator
 from med_synth_gan.models.losses import Grad
 from med_synth_gan.inference.inference import VolumeInference
@@ -347,11 +348,14 @@ def main(argv):
         lr_d=args.learning_rate_discriminator,
     ).to(device)
 
+    output_dir = "inference_{}_{}_{}_{}".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator, args.lambda_grad)
     inferencer = VolumeInference(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
-        output_dir="inference_{}_{}_{}_{}".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator, args.lambda_grad),
+        output_dir=output_dir,
         device=device
     )
+    checkpoint_saver = SaveBestModel(output_dir=output_dir+"/checkpoints")
+
     train_dataloader = DataLoader(
             train_dataset,
             batch_size=args.batch_size,
@@ -362,9 +366,13 @@ def main(argv):
             # prefetch_factor=2
         )
 
+    best_g_loss = float('inf')
+
     # Training loop
     for epoch in range(args.epochs):
         model.train()
+        epoch_g_loss = 0.0
+        epoch_d_loss = 0.0
         progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch + 1}")
 
         for batch_idx, (real_ct, real_mri) in enumerate(progress_bar):
@@ -373,10 +381,12 @@ def main(argv):
 
             # Generator update
             loss_G = model.generator_step(real_ct)
+            epoch_g_loss += loss_G
 
-            # Discriminator update
-            if batch_idx % 2 == 0:  # Update discriminator less frequently
+            # Discriminator update every 2nd step
+            if batch_idx % 2 == 0:
                 loss_D = model.discriminator_step(real_ct, real_mri)
+                epoch_d_loss += loss_D
 
             # Update progress bar
             progress_bar.set_postfix({
@@ -386,6 +396,17 @@ def main(argv):
 
         # Save checkpoint and run inference
         inferencer.run_inference(model, epoch)
+
+        # Calculate epoch averages
+        avg_g_loss = epoch_g_loss / len(train_dataloader)
+        avg_d_loss = epoch_d_loss / len(train_dataloader)
+
+        # Save best model based on generator loss
+        checkpoint_saver(avg_g_loss, epoch, model.G_ct2mri, model.D_mri,
+                         model.opt_g, model.opt_d)
+
+        if avg_g_loss < best_g_loss:
+            best_g_loss = avg_g_loss
 
     # Save final grid
     inferencer.save_final_grid()
