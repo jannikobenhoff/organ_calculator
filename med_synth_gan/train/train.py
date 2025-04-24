@@ -373,9 +373,16 @@ def main(argv):
         model.train()
         epoch_g_loss = 0.0
         epoch_d_loss = 0.0
-        progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch + 1}")
 
-        for batch_idx, (real_ct, real_mri) in enumerate(progress_bar):
+        # Create progress bar with epoch-level tracking
+        progress_bar = tqdm(
+            enumerate(train_dataloader),
+            total=len(train_dataloader),
+            desc=f"Epoch {epoch + 1}/{args.epochs}",
+            postfix={'loss_G': '0.0000', 'loss_D': '0.0000', 'best_g': f"{best_g_loss:.4f}"}
+        )
+
+        for batch_idx, (real_ct, real_mri) in progress_bar:
             real_ct = real_ct.to(device)
             real_mri = real_mri.to(device)
 
@@ -383,21 +390,31 @@ def main(argv):
             loss_G = model.generator_step(real_ct)
             epoch_g_loss += loss_G
 
-            # Discriminator update every 2nd step
-            # if batch_idx % 2 == 0:
+            # Discriminator update
             loss_D = model.discriminator_step(real_ct, real_mri)
             epoch_d_loss += loss_D
 
-        # Calculate epoch averages
+            # Calculate running averages
+            avg_g = epoch_g_loss / (batch_idx + 1)
+            avg_d = epoch_d_loss / (batch_idx + 1)
+
+            # Update progress bar with current averages
+            progress_bar.set_postfix({
+                'loss_G': f"{avg_g:.4f}",
+                'loss_D': f"{avg_d:.4f}",
+                'best_g': f"{best_g_loss:.4f}",
+            }, refresh=False)
+
+        # Calculate final epoch averages
         avg_g_loss = epoch_g_loss / len(train_dataloader)
         avg_d_loss = epoch_d_loss / len(train_dataloader)
 
-        # Update progress bar
-        progress_bar.set_postfix({
-            'loss_G': f"{avg_g_loss:.4f}",
-            'loss_D': f"{avg_d_loss:.4f}",
-            'best_g': f"{best_g_loss:.4f}",
-        })
+        # Update best loss
+        if avg_g_loss < best_g_loss:
+            best_g_loss = avg_g_loss
+
+        # Close progress bar to prevent overlapping
+
 
         # Save checkpoint and run inference
         inferencer.run_inference(model, epoch)
@@ -406,8 +423,7 @@ def main(argv):
         checkpoint_saver(avg_g_loss, epoch, model.G_ct2mri, model.D_mri,
                          model.opt_g, model.opt_d)
 
-        if avg_g_loss < best_g_loss:
-            best_g_loss = avg_g_loss
+        progress_bar.close()
 
     # Save final grid
     inferencer.save_final_grid()
