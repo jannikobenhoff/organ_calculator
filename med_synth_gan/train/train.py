@@ -14,6 +14,8 @@ from med_synth_gan.inference.inference import VolumeInference
 import random
 import kornia.augmentation as K
 from tqdm import tqdm
+import torchvision.utils as vutils
+
 
 def random_flip_rot_crop(batch,):
     B, C, H, W = batch.shape
@@ -255,7 +257,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5 , #5e-5
+        default=5e-5 , #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -404,6 +406,18 @@ def main(argv):
                 'loss_D': f"{avg_d:.4f}",
                 'best_g': f"{best_g_loss:.4f}",
             }, refresh=False)
+
+            if batch_idx % 100 == 0:
+                vutils.save_image(
+                    real_mri,
+                    f"mri_train_slice{batch_idx}.png",
+                    normalize=True
+                )
+                vutils.save_image(
+                    real_ct,
+                    f"ct_train_slice{batch_idx}.png",
+                    normalize=True
+                )
 
         # Calculate final epoch averages
         avg_g_loss = epoch_g_loss / len(train_dataloader)
