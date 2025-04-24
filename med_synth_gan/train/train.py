@@ -241,14 +241,14 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=100,
+        default=50,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=1e-7,
+        default=0,#1e-7,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
@@ -384,14 +384,15 @@ def main(argv):
             epoch_g_loss += loss_G
 
             # Discriminator update every 2nd step
-            if batch_idx % 2 == 0:
-                loss_D = model.discriminator_step(real_ct, real_mri)
-                epoch_d_loss += loss_D
+            # if batch_idx % 2 == 0:
+            loss_D = model.discriminator_step(real_ct, real_mri)
+            epoch_d_loss += loss_D
 
             # Update progress bar
             progress_bar.set_postfix({
                 'loss_G': f"{loss_G:.4f}",
-                'loss_D': f"{loss_D:.4f}"
+                'loss_D': f"{loss_D:.4f}",
+                'best_g': f"{best_g_loss:.4f}",
             })
 
         # Save checkpoint and run inference
