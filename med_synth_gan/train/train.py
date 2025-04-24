@@ -388,19 +388,19 @@ def main(argv):
             loss_D = model.discriminator_step(real_ct, real_mri)
             epoch_d_loss += loss_D
 
-            # Update progress bar
-            progress_bar.set_postfix({
-                'loss_G': f"{loss_G:.4f}",
-                'loss_D': f"{loss_D:.4f}",
-                'best_g': f"{best_g_loss:.4f}",
-            })
-
-        # Save checkpoint and run inference
-        inferencer.run_inference(model, epoch)
-
         # Calculate epoch averages
         avg_g_loss = epoch_g_loss / len(train_dataloader)
         avg_d_loss = epoch_d_loss / len(train_dataloader)
+
+        # Update progress bar
+        progress_bar.set_postfix({
+            'loss_G': f"{avg_g_loss:.4f}",
+            'loss_D': f"{avg_d_loss:.4f}",
+            'best_g': f"{best_g_loss:.4f}",
+        })
+
+        # Save checkpoint and run inference
+        inferencer.run_inference(model, epoch)
 
         # Save best model based on generator loss
         checkpoint_saver(avg_g_loss, epoch, model.G_ct2mri, model.D_mri,
