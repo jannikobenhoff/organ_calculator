@@ -116,10 +116,15 @@ class MedSynthGANModule(nn.Module):
         with torch.autocast('cuda', enabled=True):
             fake_mri = self.G_ct2mri(real_ct[:4])[0].detach()
             fake_mri = self.aug(fake_mri)
-            real_mri = self.aug(real_mri)
 
-            pred_real = self.D_mri(real_mri)
-            loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real) * 0.9)
+            noise_std = 0.05
+            real_mri_noisy = real_mri + torch.randn_like(real_mri) * noise_std
+            real_mri_noisy = torch.clamp(real_mri_noisy, 0., 1.)
+
+            real_mri_noisy = self.aug(real_mri_noisy)  # apply augmentations if you want
+
+            pred_real = self.D_mri(real_mri_noisy)
+            loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real) * 0.9)  # Label smoothing
             pred_fake = self.D_mri(fake_mri)
             loss_fake = self.criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
             loss_D = (loss_real + loss_fake) * 0.5
@@ -393,12 +398,13 @@ def main(argv):
             epoch_g_loss += loss_G
 
             # Discriminator update
-            loss_D = model.discriminator_step(real_ct, real_mri)
-            epoch_d_loss += loss_D
+            if batch_idx % 2 == 0:
+                loss_D = model.discriminator_step(real_ct, real_mri)
+                epoch_d_loss += loss_D
+                avg_d = epoch_d_loss / (batch_idx + 1)
 
             # Calculate running averages
             avg_g = epoch_g_loss / (batch_idx + 1)
-            avg_d = epoch_d_loss / (batch_idx + 1)
 
             # Update progress bar with current averages
             progress_bar.set_postfix({
