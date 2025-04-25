@@ -73,8 +73,8 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
 def main():
     generate_mri_from_ct(
         ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
-        output_dir="/home/jao4016/organ_calculator/med_synth_gan/inference/synthesized_mri",
-        checkpoint_path="/home/jao4016/organ_calculator/med_synth_gan/train/inference_mse_1e-05_5e-05_0/checkpoints/best_model.pth",
+        output_dir="synthesized_mri",
+        checkpoint_path="../train/inference_mse_1e-05_5e-05_0/checkpoints/best_model.pth",
         batch_size=24
     )
 
