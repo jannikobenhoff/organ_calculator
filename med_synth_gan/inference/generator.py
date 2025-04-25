@@ -1,12 +1,12 @@
 import torch
 from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
 from med_synth_gan.train.train import MedSynthGANModule
-
+import glob
 import os
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
-from med_synth_gan.dataset.generator_dataset import Generator2DDataset
+from med_synth_gan.dataset.single_2d_dataset import SingleVolume2DDataset
 from med_synth_gan.models.models import UNet
 import torchvision.utils as vutils
 from med_synth_gan.inference.utils import png_slices_to_nifti
@@ -22,37 +22,58 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.eval()
 
-    dataset = Generator2DDataset(ct_dir, slice_axis=2)
-    loader = DataLoader(dataset, batch_size=1, shuffle=False)
+    # Get list of CT volumes
+    ct_paths = sorted(glob.glob(os.path.join(ct_dir, '*.nii*')))
 
     # Create output directories
     fake_mri_dir = os.path.join(output_dir, "fake_mri_slices")
     os.makedirs(fake_mri_dir, exist_ok=True)
 
-    # Generate slices
-    with torch.no_grad():
-        for batch_idx, ct_slices in enumerate(loader):
-            ct_slices = ct_slices.to(device)
-            fake_mri, _ = generator(ct_slices)
+    # Process each CT volume individually
+    for ct_path in ct_paths:
+        vol_name = os.path.basename(ct_path).split('.')[0]
 
-            # Save individual slices
-            for i in range(fake_mri.shape[0]):
-                slice_idx = batch_idx * batch_size + i
+        test_dataset = SingleVolume2DDataset(
+            volume_path=ct_path,
+            slice_axis=2,
+        )
+
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=1,
+            shuffle=False
+        )
+
+        fake_mri_slices = []
+
+        with torch.no_grad():
+            for i, (ct_slice,) in enumerate(test_loader):
+                ct_slice = ct_slice.to(device)
+                fake_mri, _ = generator(ct_slice)
+
+                # Save slices
                 vutils.save_image(
-                    fake_mri[i],
-                    os.path.join(fake_mri_dir, f"fakeMRI_{slice_idx:04d}.png"),
-                    normalize=True
+                    fake_mri,
+                    os.path.join(fake_mri_dir, f"fakeMRI_{i:04d}.png"),
+                    normalize=False
                 )
 
-    # Convert to NIfTI volume
-    output_nifti = os.path.join(output_dir, "synthetic_mri.nii.gz")
-    png_slices_to_nifti(fake_mri_dir, output_nifti)
+                fake_mri_slices.append(fake_mri)
 
-    print(f"Generated synthetic MRI volume saved to {output_nifti}")
+        # Convert to NIfTI
+        output_nifti_path = os.path.join(output_dir, f"synth_{vol_name}.nii.gz")
+
+        png_slices_to_nifti(fake_mri_dir, output_nifti_path)
+
+        print(f"Generated {vol_name}")
+
+    print(f"Completed processing {len(ct_paths)} CT volumes")
 
 
 
 def main():
+    print("Starting MedSynthGAN generator", flush=True)
+
     generate_mri_from_ct(
         ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
         output_dir="synthesized_mri",
