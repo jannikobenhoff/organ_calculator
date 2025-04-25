@@ -119,7 +119,7 @@ class MedSynthGANModule(nn.Module):
             real_mri = self.aug(real_mri)
 
             pred_real = self.D_mri(real_mri)
-            loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real))
+            loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real) * 0.9)
             pred_fake = self.D_mri(fake_mri)
             loss_fake = self.criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
             loss_D = (loss_real + loss_fake) * 0.5
