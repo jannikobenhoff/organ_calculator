@@ -2,67 +2,49 @@ import nibabel as nib
 import numpy as np
 from torch.utils.data import Dataset
 from PIL import Image
+import glob
+import os
 
 from med_synth_gan.dataset.utils import contrast_transform_ct
 
 class Generator2DDataset(Dataset):
-    """
-    Loads multiple 3D NIfTI volumes, extracts 2D slices along `slice_axis`,
-    and returns them with volume indices for reconstruction.
-    """
-
-    def __init__(self, volume_paths, slice_axis=2):
-        """
-        :param volume_paths: List of paths to NIfTI files
-        :param slice_axis: Axis along which to extract slices (0=X, 1=Y, 2=Z)
-        """
+    def __init__(self, ct_dir, slice_axis=2):
         super().__init__()
-        self.transform = contrast_transform_ct
+        self.ct_vol_paths = sorted(glob.glob(os.path.join(ct_dir, '*.nii*')))
         self.slice_axis = slice_axis
-        self.slices = []
-        self.volume_indices = []
-        self.volume_shapes = []
 
-        # Load all volumes and extract slices
-        for vol_idx, path in enumerate(volume_paths):
-            volume_nifti = nib.load(path)
-            volume_data = volume_nifti.get_fdata(dtype=np.float32)
-            self.volume_shapes.append(volume_data.shape)
+        # Load all CT volumes with memory mapping
+        self.ct_volumes = [nib.load(path).get_fdata(dtype=np.float32)
+                          for path in self.ct_vol_paths]
 
-            num_slices = volume_data.shape[self.slice_axis]
-            for slice_idx in range(num_slices):
-                self.slices.append(self._get_slice(volume_data, slice_idx))
-                self.volume_indices.append(vol_idx)
+        # Pre-calculate slice indices for all volumes
+        self.ct_slice_indices = []
+        for vol_idx, vol in enumerate(self.ct_volumes):
+            num_slices = vol.shape[self.slice_axis]
+            self.ct_slice_indices.extend([(vol_idx, s) for s in range(num_slices)])
 
     def _get_slice(self, volume, slice_idx):
-        """Extract and preprocess single slice from 3D volume"""
         if self.slice_axis == 0:
-            slice_2d = volume[slice_idx, :, :]
+            slice_ = volume[slice_idx, :, :]
         elif self.slice_axis == 1:
-            slice_2d = volume[:, slice_idx, :]
+            slice_ = volume[:, slice_idx, :]
         else:
-            slice_2d = volume[:, :, slice_idx]
-
-        return np.rot90(slice_2d)
-
-    def __len__(self):
-        return len(self.slices)
+            slice_ = volume[:, :, slice_idx]
+        return np.rot90(slice_)
 
     def __getitem__(self, idx):
-        """
-        Returns:
-            tuple: (transformed_slice, volume_index, slice_index_in_volume)
-        """
-        slice_2d = self.slices[idx]
-        vol_idx = self.volume_indices[idx]
+        # Get volume and slice indices
+        vol_idx, slice_idx = self.ct_slice_indices[idx]
 
-        # Convert to PIL Image and apply transforms
-        slice_img = Image.fromarray(slice_2d, mode='F')
-        if self.transform:
-            slice_img = self.transform(slice_img)
+        # Extract and preprocess slice
+        ct_slice = self._get_slice(self.ct_volumes[vol_idx], slice_idx)
 
-        # Get original slice index within volume
-        vol_start = self.volume_indices.index(vol_idx)
-        slice_in_vol = idx - vol_start
+        # Apply same transforms as training
+        ct_img = Image.fromarray(ct_slice, mode='F')
+        ct_tensor = contrast_transform_ct(ct_img)
 
-        return slice_img, vol_idx, slice_in_vol
+        # Return volume index and slice index for reconstruction
+        return ct_tensor, vol_idx, slice_idx
+
+    def __len__(self):
+        return len(self.ct_slice_indices)
