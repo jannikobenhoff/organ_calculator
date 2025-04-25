@@ -6,7 +6,7 @@ import os
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
-from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
+from med_synth_gan.dataset.generator_dataset import Generator2DDataset
 from med_synth_gan.models.models import UNet
 import torchvision.utils as vutils
 from med_synth_gan.inference.utils import png_slices_to_nifti
@@ -22,26 +22,8 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.eval()
 
-    # Create dataset (CT only)
-    class CtInferenceDataset(CtMri2DDataset):
-        def __getitem__(self, idx):
-            ct_slice = super().__getitem__(idx)[0]  # Get only CT slice
-            return ct_slice
-
-    dataset = CtInferenceDataset(
-        ct_dir=ct_dir,
-        mri_dir=None,  # Bypass MRI requirement
-        slice_axis=2
-    )
-
-    # Create dataloader
-    loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=4,
-        pin_memory=True
-    )
+    dataset = Generator2DDataset([ct_dir], slice_axis=2)
+    loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
     # Create output directories
     fake_mri_dir = os.path.join(output_dir, "fake_mri_slices")
