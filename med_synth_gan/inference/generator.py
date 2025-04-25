@@ -22,7 +22,7 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.eval()
 
-    dataset = Generator2DDataset([ct_dir], slice_axis=2)
+    dataset = Generator2DDataset(ct_dir, slice_axis=2)
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
     # Create output directories
