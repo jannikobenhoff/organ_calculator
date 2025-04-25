@@ -17,4 +17,4 @@ source ../../venv/bin/activate
 
 cd ../inference || exit
 
-python -u generate.py
+python -u generator.py
