@@ -11,6 +11,8 @@ class SaveBestModel:
     def __call__(self, current_metric, epoch, generator, discriminator, opt_g, opt_d):
         if (current_metric < self.best_metric and self.lower_better) or \
            (current_metric > self.best_metric and not self.lower_better):
+            print(f"Saving better model in epoch {epoch}", flush=True)
+
             self.best_metric = current_metric
             self.save_checkpoint(
                 epoch, generator, discriminator, opt_g, opt_d,
