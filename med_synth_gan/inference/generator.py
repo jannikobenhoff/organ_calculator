@@ -30,7 +30,7 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
     os.makedirs(fake_mri_dir, exist_ok=True)
 
     # Process each CT volume individually
-    for ct_path in ct_paths:
+    for ct_path in ct_paths[:10]:
         vol_name = os.path.basename(ct_path).split('.')[0]
 
         test_dataset = SingleVolume2DDataset(
