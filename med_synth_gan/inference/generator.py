@@ -86,6 +86,11 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
 
         png_slices_to_nifti(fake_mri_dir, output_nifti_path)
 
+        # Save original CT as well
+        basename = os.path.basename(ct_path)
+        dest_path = os.path.join(output_dir, basename)
+        shutil.copy2(ct_path, dest_path)  # preserves metadata
+
         print(f"Generated {vol_name}")
 
     print(f"Completed processing {len(ct_paths)} CT volumes")
