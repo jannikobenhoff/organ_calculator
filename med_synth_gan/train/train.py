@@ -117,13 +117,9 @@ class MedSynthGANModule(nn.Module):
             fake_mri = self.G_ct2mri(real_ct[:4])[0].detach()
             fake_mri = self.aug(fake_mri)
 
-            noise_std = 0.05
-            real_mri_noisy = real_mri.clone() + torch.randn_like(real_mri) * noise_std
-            real_mri_noisy = torch.clamp(real_mri_noisy, 0., 1.)
+            real_mri = self.aug(real_mri)
 
-            real_mri_noisy = self.aug(real_mri_noisy)
-
-            pred_real = self.D_mri(real_mri_noisy)
+            pred_real = self.D_mri(real_mri)
             loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real) * 0.9)  # Label smoothing
             pred_fake = self.D_mri(fake_mri)
             loss_fake = self.criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
@@ -134,7 +130,7 @@ class MedSynthGANModule(nn.Module):
         self.grad_scaler.step(self.opt_d)
         self.grad_scaler.update()
         return loss_D.item()
-    #
+
     # def training_step(self, batch, batch_idx):
     #     if batch is None:
     #         return None
@@ -262,7 +258,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=1e-5 , #5e-5
+        default=2e-5 , #5e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
