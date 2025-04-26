@@ -51,14 +51,30 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
                 ct_slice = ct_slice.to(device)
                 fake_mri, _ = generator(ct_slice)
 
+                h_orig, w_orig = test_dataset.volume.shape[0], test_dataset.volume.shape[1]
+
+                # Interpolate
+                fake_mri_resized = torch.nn.functional.interpolate(
+                    fake_mri, size=(h_orig, w_orig), mode='bilinear', align_corners=False
+                )
+
                 # Save slices
                 vutils.save_image(
-                    fake_mri,
+                    fake_mri_resized,
                     os.path.join(fake_mri_dir, f"fakeMRI_{i:04d}.png"),
                     normalize=False
                 )
 
-                fake_mri_slices.append(fake_mri)
+                fake_mri_slices.append(fake_mri_resized)
+
+                # Save slices
+                # vutils.save_image(
+                #     fake_mri,
+                #     os.path.join(fake_mri_dir, f"fakeMRI_{i:04d}.png"),
+                #     normalize=False
+                # )
+                #
+                # fake_mri_slices.append(fake_mri)
 
         # Convert to NIfTI
         output_nifti_path = os.path.join(output_dir, f"synth_{vol_name}.nii.gz")

@@ -25,6 +25,8 @@ class SingleVolume2DDataset(Dataset):
         volume_nifti = nib.load(volume_path)
         self.volume = volume_nifti.get_fdata(dtype=np.float32)  # Shape: (X, Y, Z) or (H, W, D)
 
+        self.original_shape = self.volume.shape
+
         # Extract slices
         self.slices = [self._get_slice(i) for i in range(self.volume.shape[self.slice_axis])]
 
