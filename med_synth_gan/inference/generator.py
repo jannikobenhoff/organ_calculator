@@ -5,6 +5,7 @@ import glob
 import os
 import torch
 import numpy as np
+import shutil
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.single_2d_dataset import SingleVolume2DDataset
 from med_synth_gan.models.models import UNet
@@ -31,6 +32,10 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
 
     # Process each CT volume individually
     for ct_path in ct_paths[:10]:
+        if os.path.exists(fake_mri_dir):
+            shutil.rmtree(fake_mri_dir)
+        os.makedirs(fake_mri_dir)
+
         vol_name = os.path.basename(ct_path).split('.')[0]
 
         test_dataset = SingleVolume2DDataset(
