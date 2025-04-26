@@ -254,7 +254,7 @@ def parse_args(argv):
         default=1e-3,#1e-7,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
-    )
+    ) # hab zwei runs drinne
     parser.add_argument(
         "-lr",
         "--learning-rate",
