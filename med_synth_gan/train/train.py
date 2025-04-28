@@ -5,6 +5,7 @@ import torch.nn as nn
 # import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
+from med_synth_gan.dataset.ct_mri_3d_dataset import CtMri3DDataset
 from med_synth_gan.models.models import UNet
 from med_synth_gan.train.saver import SaveBestModel
 from med_synth_gan.models.cycle_gan import Discriminator
@@ -59,7 +60,7 @@ def set_requires_grad(nets, requires_grad=False):
                 param.requires_grad = requires_grad
 
 class MedSynthGANModule(nn.Module):
-    def __init__(self, lr, lr_d, lambda_grad, loss_type="mse"):
+    def __init__(self, lr, lr_d, lambda_grad, loss_type="mse", dim="2d"):
         super().__init__()
         self.automatic_optimization = False
         self.lr = lr
@@ -70,8 +71,8 @@ class MedSynthGANModule(nn.Module):
         #self.save_hyperparameters()
 
         # Models
-        self.G_ct2mri = UNet()
-        self.D_mri = Discriminator()
+        self.G_ct2mri = UNet(dim=dim)
+        self.D_mri = Discriminator(dim=dim)
 
         self.opt_g = torch.optim.AdamW(self.G_ct2mri.parameters(), lr=lr)
         self.opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=lr_d)
@@ -337,11 +338,20 @@ def main(argv):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Starting MedSynthGAN training with args: {}".format(args), flush=True)
 
-    train_dataset = CtMri2DDataset(
-        ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
-        mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
-        slice_axis=2
-    )
+    dim = "3d"
+
+    if dim == "2d":
+        train_dataset = CtMri2DDataset(
+            ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
+            mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
+            slice_axis=2
+        )
+    else:
+        train_dataset = CtMri3DDataset(
+            ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
+            mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
+            out_size=(128,128,128)
+        )
 
     # Initialize module
     model = MedSynthGANModule(
@@ -349,6 +359,7 @@ def main(argv):
         lambda_grad=args.lambda_grad,
         lr=args.learning_rate,
         lr_d=args.learning_rate_discriminator,
+        dim=dim
     ).to(device)
 
     output_dir = "inference_{}_{}_{}_{}".format(args.loss_type, args.learning_rate, args.learning_rate_discriminator, args.lambda_grad)

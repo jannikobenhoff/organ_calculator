@@ -4,44 +4,67 @@ import torch
 import torch.nn as nn
 
 
+LAYER_LOOKUP = {
+    "2d": dict(
+        Conv=nn.Conv2d,
+        Norm=nn.InstanceNorm2d,
+        Pool=lambda : nn.MaxPool2d(2),
+        upsample_mode="bilinear",
+    ),
+    "3d": dict(
+        Conv=nn.Conv3d,
+        Norm=nn.InstanceNorm3d,
+        Pool=lambda : nn.MaxPool3d(2),
+        upsample_mode="trilinear",
+    ),
+}
+
 class UNet(nn.Module):
-    def __init__(self, input_channels=1, output_channels=1, is_disc = False): # changed this to 2
+    def __init__(
+        self,
+        dim: str = "2d",
+        input_channels: int = 1,
+        output_channels: int = 1,
+        is_disc: bool = False,
+    ):
         super().__init__()
-        self.input_channels = input_channels
-        self.output_channels = output_channels
-
-        nb_filter = [32, 64, 128, 256, 512, 512]
-        self.nb_filter = nb_filter
-        self.pool = nn.MaxPool2d(2)
-        self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-
-        self.conv0_0 = VGGBlock(2, nb_filter[0])
-        self.conv1_0 = VGGBlock(nb_filter[0],  nb_filter[1],stride=2)
-        self.conv2_0 = VGGBlock(nb_filter[1], nb_filter[2],stride=2)
-        self.conv3_0 = VGGBlock(nb_filter[2],  nb_filter[3],stride=2)
-        self.conv4_0 = VGGBlock(nb_filter[3],  nb_filter[4],stride=2)
-        self.conv5_0 = VGGBlock(nb_filter[4], nb_filter[5],stride=2)
-        self.conv6_0 = VGGBlock(nb_filter[5], nb_filter[5],stride=1)
-
-        self.conv4_1 = VGGBlock(nb_filter[4]+nb_filter[5],  nb_filter[4])
-        self.conv3_1 = VGGBlock(nb_filter[3]+nb_filter[4],  nb_filter[3])
-        self.conv2_1 = VGGBlock(nb_filter[2]+nb_filter[3], nb_filter[2])
-        self.conv1_1 = VGGBlock(nb_filter[1]+nb_filter[2],  nb_filter[1])
-        self.conv0_1 = VGGBlock(nb_filter[0]+nb_filter[1],  nb_filter[0])
-
-        self.final = nn.Conv2d(nb_filter[0], 2, kernel_size=1,bias=False)
+        assert dim in ("2d", "3d"), "dim must be '2d' or '3d'"
+        self.dim   = dim
         self.is_disc = is_disc
-        # torch.nn.init.normal_(self.final.weight, mean=0.0, std=1e-2)
-        #torch.nn.init.constant_(self.final.bias[0], 0.0)  # scale channel -> 0 => +1 = 1
-        #torch.nn.init.constant_(self.final.bias[1], 0.0)  # offset channel -> 0
 
-    def forward(self, input, real=None):
+        Conv  = LAYER_LOOKUP[dim]["Conv"]
+        self.up = nn.Upsample(scale_factor=2,
+                              mode=LAYER_LOOKUP[dim]["upsample_mode"],
+                              align_corners=True)
+        # -------- encoder --------
+        self.conv0_0 = VGGBlock(input_channels*2,  32, dim=dim)
+        self.conv1_0 = VGGBlock(32,  64, stride=2, dim=dim)
+        self.conv2_0 = VGGBlock(64, 128, stride=2, dim=dim)
+        self.conv3_0 = VGGBlock(128,256, stride=2, dim=dim)
+        self.conv4_0 = VGGBlock(256,512, stride=2, dim=dim)
+        self.conv5_0 = VGGBlock(512,512, stride=2, dim=dim)
+        self.conv6_0 = VGGBlock(512,512, stride=1, dim=dim)
+
+        # -------- decoder --------
+        self.conv4_1 = VGGBlock(512+512, 512, dim=dim)
+        self.conv3_1 = VGGBlock(256+512, 256, dim=dim)
+        self.conv2_1 = VGGBlock(128+256, 128, dim=dim)
+        self.conv1_1 = VGGBlock( 64+128,  64, dim=dim)
+        self.conv0_1 = VGGBlock( 32+ 64,  32, dim=dim)
+
+        # two-channel scale-and-shift field
+        self.final = Conv(32, 2, kernel_size=1, bias=False)
+
+    # -----------------------------------------------------------------
+    def forward(self, x, real=None):
+        # Same “scale-and-shift” trick you had before
         if real is not None and random.random() > 0.5:
-            input = torch.cat([input, real], 1)
+            x = torch.cat([x, real], 1)
         else:
-            input = torch.cat([input, input], 1)
+            x = torch.cat([x, x], 1)
 
-        x0_0 = self.conv0_0(input)
+        # -------- encoder --------
+        x0_0 = self.conv0_0(x)
         x1_0 = self.conv1_0(x0_0)
         x2_0 = self.conv2_0(x1_0)
         x3_0 = self.conv3_0(x2_0)
@@ -49,43 +72,34 @@ class UNet(nn.Module):
         x5_0 = self.conv5_0(x4_0)
         x6_0 = self.conv6_0(x5_0)
 
+        # -------- decoder --------
         x4_1 = self.conv4_1(torch.cat([x4_0, self.up(x6_0)], 1))
         x3_1 = self.conv3_1(torch.cat([x3_0, self.up(x4_1)], 1))
         x2_1 = self.conv2_1(torch.cat([x2_0, self.up(x3_1)], 1))
         x1_1 = self.conv1_1(torch.cat([x1_0, self.up(x2_1)], 1))
         x0_1 = self.conv0_1(torch.cat([x0_0, self.up(x1_1)], 1))
+
         scale_field = self.final(x0_1)
-        output = input[:,:1]*scale_field[:,:1] +scale_field[:,1:]
-        return output, scale_field
+        out = x[:, :1] * scale_field[:, :1] + scale_field[:, 1:]
+        return out, scale_field
 
 class VGGBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride = 1, relu='lrelu', dropout_prob=0.0):
+    def __init__(self, in_ch, out_ch, stride=1, relu="lrelu", dim="2d"):
         super().__init__()
-        if relu=='lrelu':
-            self.relu = nn.LeakyReLU(inplace=True, negative_slope=0.1)
-        else:
-            self.relu = nn.ReLU(inplace=True)
+        assert dim in ("2d", "3d"), "dim must be '2d' or '3d'"
+        Conv = LAYER_LOOKUP[dim]["Conv"]
+        Norm = LAYER_LOOKUP[dim]["Norm"]
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding=1,stride=stride)
-        self.bn1 = nn.InstanceNorm2d(out_channels,affine=True)
-        #self.dropout1 = nn.Dropout(dropout_prob) if dropout_prob > 0 else nn.Identity()
-
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1)
-        self.bn2 = nn.InstanceNorm2d(out_channels,affine=True)
-        #self.dropout2 = nn.Dropout(dropout_prob) if dropout_prob > 0 else nn.Identity()
+        self.relu = nn.LeakyReLU(0.1, inplace=True) if relu == "lrelu" else nn.ReLU(inplace=True)
+        self.conv1 = Conv(in_ch, out_ch, kernel_size=3, padding=1, stride=stride)
+        self.bn1   = Norm(out_ch, affine=True)
+        self.conv2 = Conv(out_ch, out_ch, kernel_size=3, padding=1)
+        self.bn2   = Norm(out_ch, affine=True)
 
     def forward(self, x):
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        #out = self.dropout1(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-        #out = self.dropout2(out)
-
-        return out
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.relu(self.bn2(self.conv2(x)))
+        return x
 
 class ResidualBlockWithStride(nn.Module):
     """Residual block with a stride on the first convolution.
