@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
-from med_synth_gan.dataset.utils import contrast_transform_ct
+from med_synth_gan.dataset.utils import contrast_transform_ct_3d
 
 class CtMri3DDataset(Dataset):
     """
@@ -73,7 +73,7 @@ class CtMri3DDataset(Dataset):
 
     @staticmethod
     def _ct_contrast(x: torch.Tensor) -> torch.Tensor:
-        x = contrast_transform_ct(x)
+        x = contrast_transform_ct_3d(x)
         return x
 
     @staticmethod

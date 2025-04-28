@@ -21,6 +21,26 @@ contrast_transform_mri = T.Compose([
         T.Lambda(lambda x: x / 500),
 ])
 
+def contrast_transform_ct_3d(x: torch.Tensor, out_size=(128,128,128)):
+    """
+    Args
+    ----
+    x : 1×D×H×W tensor (float32, HU)
+    Returns
+    -------
+    1×D×H×W tensor in [0,1]
+    """
+    # resize (tri-linear) if requested
+    if x.shape[1:] != out_size:
+        x = torch.nn.functional.interpolate(
+            x.unsqueeze(0), size=out_size,
+            mode="trilinear", align_corners=False
+        )[0]
+
+    x = torch.clamp(x, -200, 500)          # window
+    x = (x + 200) / 700                    # scale to 0-1
+    return x
+
 def normalize_mri(input_image):
         numpydata = np.asarray(input_image)
         p1, p99 = np.percentile(numpydata, [1, 95])
