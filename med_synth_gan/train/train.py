@@ -87,14 +87,17 @@ class MedSynthGANModule(nn.Module):
         self.criterion_grad = Grad(penalty='l1')
         self.grad_scaler = torch.amp.GradScaler('cuda')
 
-        H,W = 256,256
-        self.aug = torch.nn.Sequential(
-            K.RandomHorizontalFlip(p=0.3),
-            K.RandomVerticalFlip(p=0.3),
-            K.RandomRotation(degrees=180.0,p=0.3),
-            K.RandomResizedCrop(size=(H, W), scale=(0.8, 1.0),p=0.3),
-            K.RandomPerspective(distortion_scale=0.5, p=0.3),
-        ).cuda()
+        if dim == "2d":
+            H, W = 256, 256
+            self.aug = torch.nn.Sequential(
+                K.RandomHorizontalFlip(p=0.3),
+                K.RandomVerticalFlip(p=0.3),
+                K.RandomRotation(degrees=180.0, p=0.3),
+                K.RandomResizedCrop(size=(H, W), scale=(0.8, 1.0), p=0.3),
+                K.RandomPerspective(distortion_scale=0.5, p=0.3),
+            ).cuda()
+        else:  # 3-D – either disable or switch to TorchIO / MONAI
+            self.aug = nn.Identity()
 
     def forward(self, ct_image):
         return self.G_ct2mri(ct_image)
@@ -115,7 +118,10 @@ class MedSynthGANModule(nn.Module):
 
     def discriminator_step(self, real_ct, real_mri):
         with torch.autocast('cuda', enabled=True):
-            fake_mri = self.G_ct2mri(real_ct[:4])[0].detach()
+            if real_ct.dim() == 5 and real_ct.size(0) > 2:  # 3d
+                fake_mri = self.G_ct2mri(real_ct[:2])[0].detach()
+            else:
+                fake_mri = self.G_ct2mri(real_ct[:4])[0].detach()
             fake_mri = self.aug(fake_mri)
 
             real_mri = self.aug(real_mri)
@@ -131,6 +137,18 @@ class MedSynthGANModule(nn.Module):
         self.grad_scaler.step(self.opt_d)
         self.grad_scaler.update()
         return loss_D.item()
+
+    def configure_optimizers(self):
+        opt_g = torch.optim.AdamW(
+            self.G_ct2mri.parameters(),
+            lr=self.lr, betas=(0.5, 0.999), weight_decay=0  # 0.01
+        )
+
+        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999), weight_decay=0)  # 0.01
+
+        return (
+            [opt_g, opt_d]
+        )
 
     # def training_step(self, batch, batch_idx):
     #     if batch is None:
@@ -190,18 +208,6 @@ class MedSynthGANModule(nn.Module):
     #
     #     self.disc_step += 1
     #     self.trainer.fit_loop.epoch_loop.manual_optimization.optim_step_progress.total.completed += 1
-
-    def configure_optimizers(self):
-        opt_g = torch.optim.AdamW(
-            self.G_ct2mri.parameters(),
-            lr=self.lr, betas=(0.5, 0.999), weight_decay=0  # 0.01
-        )
-
-        opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=self.lr_d, betas=(0.5, 0.999), weight_decay=0)  # 0.01
-
-        return (
-            [opt_g, opt_d]
-        )
 
 # class CustomProgressBar(TQDMProgressBar):
 #     def __init__(self):
@@ -333,25 +339,22 @@ def parse_args(argv):
 #
 #     return model
 
+def make_loader(dim, ct_dir, mri_dir, batch, workers=4):
+    if dim == "2d":
+        ds = CtMri2DDataset(ct_dir, mri_dir, slice_axis=2)
+    else:                                    # 3-D
+        ds = CtMri3DDataset(ct_dir, mri_dir, out_size=(128,128,128))
+        batch = min(batch, 2)                # GPU memory guard
+    return DataLoader(ds, batch_size=batch,
+                      shuffle=True, num_workers=workers,
+                      pin_memory=True)
+
 def main(argv):
     args = parse_args(argv)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Starting MedSynthGAN training with args: {}".format(args), flush=True)
 
     dim = "3d"
-
-    if dim == "2d":
-        train_dataset = CtMri2DDataset(
-            ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
-            mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
-            slice_axis=2
-        )
-    else:
-        train_dataset = CtMri3DDataset(
-            ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
-            mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
-            out_size=(128,128,128)
-        )
 
     # Initialize module
     model = MedSynthGANModule(
@@ -370,15 +373,8 @@ def main(argv):
     )
     checkpoint_saver = SaveBestModel(output_dir=output_dir+"/checkpoints")
 
-    train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=args.batch_size,
-            num_workers=0,
-            shuffle=True,
-            collate_fn=collate_fn,
-            pin_memory=True,
-            # prefetch_factor=2
-        )
+    train_loader = make_loader(dim, args.ct_dir, args.mri_dir,
+                               batch=args.batch_size)
 
     best_g_loss = float('inf')
 
@@ -390,8 +386,8 @@ def main(argv):
 
         # Create progress bar with epoch-level tracking
         progress_bar = tqdm(
-            enumerate(train_dataloader),
-            total=len(train_dataloader),
+            enumerate(train_loader),
+            total=len(train_loader),
             desc=f"Epoch {epoch + 1}/{args.epochs}",
             postfix={'loss_G': '0.0000', 'loss_D': '0.0000', 'best_g': f"{best_g_loss:.4f}"}
         )
