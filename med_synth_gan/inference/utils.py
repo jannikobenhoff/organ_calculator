@@ -20,34 +20,29 @@ from PIL import Image
 #     volume = reader.Execute()
 #     sitk.WriteImage(volume, output_nifti)
 #     print(f"Saved 3D volume to: {output_nifti}")
-import numpy as np
-import nibabel as nib
-import glob
-import os
-from PIL import Image
 
 def png_slices_to_nifti(png_folder, output_nifti, reference_nifti_path):
-    """
-    Manually read sorted PNG slices into a 3D volume and save with original affine/header.
-    """
-    # Read sorted PNG slices manually
     slice_files = sorted(glob.glob(os.path.join(png_folder, "*.png")))
     if not slice_files:
         raise ValueError(f"No PNG files found in folder: {png_folder}")
 
     slices = [np.array(Image.open(s).convert('F')) for s in slice_files]
 
-    # Stack slices along the 3rd dimension (correct for axial)
+    # Stack slices into a 3D numpy array
     volume_array = np.stack(slices, axis=-1).astype(np.float32)
 
-    # Load original affine and header from CT
+    # Rotate axial slices 90 degrees clockwise
+    volume_array = np.rot90(volume_array, k=-1, axes=(0, 1))
+
+    # Switch coronal and sagittal axes
+    volume_array = np.transpose(volume_array, (1, 0, 2))
+
+    # Load original affine/header from CT reference
     original_nifti = nib.load(reference_nifti_path)
     affine = original_nifti.affine
     header = original_nifti.header.copy()
-
-    # Ensure header dimensions match new volume
     header.set_data_shape(volume_array.shape)
 
-    # Save as new NIfTI file with original affine
     nib.save(nib.Nifti1Image(volume_array, affine, header), output_nifti)
-    print(f"Saved 3D NIfTI volume to: {output_nifti}")
+    print(f"Saved rotated and adjusted NIfTI volume to: {output_nifti}")
+
