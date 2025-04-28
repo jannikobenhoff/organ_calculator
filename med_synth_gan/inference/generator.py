@@ -19,6 +19,7 @@ def generate_mri_from_ct(ct_dir, output_dir, checkpoint_path, batch_size=8):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.eval()
+    print('Generator loaded', flush=True)
 
     ct_paths = sorted(glob.glob(os.path.join(ct_dir, '*.nii*')))
 
