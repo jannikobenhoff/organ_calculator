@@ -79,7 +79,7 @@ class VolumeInference:
         # ---------- load, preprocess volume ----------
         nii = nib.load(self.path)
         vol = torch.from_numpy(nii.get_fdata(dtype='float32')).unsqueeze(0)  # 1×D×H×W
-        vol = contrast_transform_ct_3d(vol, out_size=(256,96,256)).to(self.device)
+        vol = contrast_transform_ct_3d(vol, out_size=(256,256,96)).to(self.device)
 
         model.eval()
         with torch.no_grad():
