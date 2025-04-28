@@ -2,6 +2,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 import torchvision.utils as vutils
+import numpy as np
 from med_synth_gan.dataset.single_2d_dataset import SingleVolume2DDataset
 from med_synth_gan.inference.utils import png_slices_to_nifti
 import os, shutil, nibabel as nib, torch, torchvision.utils as vutils
@@ -84,12 +85,11 @@ class VolumeInference:
         with torch.no_grad():
             fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0]    # 1×1×D×H×W
 
-        fake_vol = fake_vol.squeeze(0).squeeze(0)  # D×H×W
-        # or fake_vol = fake_vol[0, 0]                    # same result
-        # or fake_vol = fake_vol.squeeze()                # removes *all* 1-dims
-
+        fake_vol = fake_vol.squeeze()  # D×H×W
         fake_arr = fake_vol.cpu().numpy().astype("float32")
-        fake_img = nib.Nifti1Image(fake_arr, affine=nii.affine)
+
+        affine = np.eye(4, dtype="float32")  # 1 mm isotropic voxels
+        fake_img = nib.Nifti1Image(fake_arr, affine)
         nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
 
         img = nib.load(os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
