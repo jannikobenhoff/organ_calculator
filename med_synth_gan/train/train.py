@@ -418,7 +418,7 @@ def main(argv):
                 'best_g': f"{best_g_loss:.4f}",
             }, refresh=False)
 
-            if batch_idx % 100 == 0:
+            if flase and batch_idx % 100 == 0:
                 vutils.save_image(
                     real_mri,
                     f"mri_train_slice{batch_idx}.png",
@@ -430,6 +430,7 @@ def main(argv):
                     normalize=True
                 )
 
+        continue
         # Calculate final epoch averages
         avg_g_loss = epoch_g_loss / len(train_dataloader)
         avg_d_loss = epoch_d_loss / len(train_dataloader)
