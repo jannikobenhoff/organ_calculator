@@ -17,7 +17,7 @@ class CtMri3DDataset(Dataset):
         self,
         ct_dir:  str,
         mri_dir: str,
-        out_size: tuple[int, int, int] = (96, 256, 256),
+        out_size: tuple[int, int, int] = (256,96,256),
         ct_limit: int = 50,          # keep your “balance” heuristic
     ):
         super().__init__()

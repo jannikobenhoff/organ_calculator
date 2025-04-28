@@ -344,7 +344,7 @@ def make_loader(dim, ct_dir, mri_dir, batch, workers=4):
     if dim == "2d":
         ds = CtMri2DDataset(ct_dir, mri_dir, slice_axis=2)
     else:                                    # 3-D
-        ds = CtMri3DDataset(ct_dir, mri_dir, out_size=(96,256,256))
+        ds = CtMri3DDataset(ct_dir, mri_dir, out_size=(256,96,256))
         batch = min(batch, 2)                # GPU memory guard
     return DataLoader(ds, batch_size=batch,
                       shuffle=True, num_workers=workers,
