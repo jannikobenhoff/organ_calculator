@@ -21,7 +21,7 @@ contrast_transform_mri = T.Compose([
         T.Lambda(lambda x: x / 500),
 ])
 
-def contrast_transform_ct_3d(x: torch.Tensor, out_size=(128,128,128)):
+def contrast_transform_ct_3d(x: torch.Tensor, out_size=(96, 256, 256)):
     """
     Args
     ----

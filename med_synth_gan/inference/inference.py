@@ -32,9 +32,9 @@ class VolumeInference:
     # -----------------------------------------------
     def run_inference(self, model, epoch):
         epoch_dir = os.path.join(self.outdir, f"epoch_{epoch}")
-        os.makedirs(epoch_dir, exist_ok=True)
 
         if self.dim == "2d":
+            os.makedirs(epoch_dir, exist_ok=True)
             self._run_2d(model, epoch_dir, epoch)
         else:
             self._run_3d(model, epoch_dir, epoch)
@@ -79,7 +79,7 @@ class VolumeInference:
         # ---------- load, preprocess volume ----------
         nii = nib.load(self.path)
         vol = torch.from_numpy(nii.get_fdata(dtype='float32')).unsqueeze(0)  # 1×D×H×W
-        vol = contrast_transform_ct_3d(vol, out_size=(128,128,128)).to(self.device)
+        vol = contrast_transform_ct_3d(vol, out_size=(96,256,256)).to(self.device)
 
         model.eval()
         with torch.no_grad():
