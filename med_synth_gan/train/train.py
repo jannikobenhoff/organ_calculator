@@ -245,7 +245,7 @@ def parse_args(argv):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=24,
+        default=1,
         type=int,
         help="Batch size for training",
     )
@@ -420,7 +420,7 @@ def main(argv):
                 'best_g': f"{best_g_loss:.4f}",
             }, refresh=False)
 
-            if batch_idx % 100 == 0:
+            if batch_idx % 10 == 0:
                 save_debug_images(real_ct, real_mri, batch_idx, dim)
 
         # Calculate final epoch averages
@@ -430,9 +430,6 @@ def main(argv):
         # Update best loss
         if avg_g_loss < best_g_loss:
             best_g_loss = avg_g_loss
-
-        # Close progress bar to prevent overlapping
-
 
         # Save checkpoint and run inference
         inferencer.run_inference(model, epoch)
