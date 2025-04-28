@@ -418,7 +418,7 @@ def main(argv):
                 'best_g': f"{best_g_loss:.4f}",
             }, refresh=False)
 
-            if flase and batch_idx % 100 == 0:
+            if False and batch_idx % 100 == 0:
                 vutils.save_image(
                     real_mri,
                     f"mri_train_slice{batch_idx}.png",
