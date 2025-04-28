@@ -90,7 +90,8 @@ class VolumeInference:
 
         affine = np.eye(4, dtype="float32")  # 1 mm isotropic voxels
         fake_img = nib.Nifti1Image(fake_arr, affine)
-        nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
+        # nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
+        nib.save(fake_img, os.path.join(self.outdir, f"fake_mri_{epoch}.nii.gz"))
 
         img = nib.load(os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
         print("TT:", img.get_fdata().shape, img.get_fdata().dtype)
