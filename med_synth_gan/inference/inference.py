@@ -85,10 +85,12 @@ class VolumeInference:
             fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0][0]   # → 1×D×H×W
 
         # ---------- save NIfTI ----------
-        fake_nifti = nib.Nifti1Image(fake_vol.cpu().numpy(), affine=nii.affine)
-        out_path = os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz")
-        nib.save(fake_nifti, out_path)
+        fake_vol_np = fake_vol.cpu().numpy().astype('float32')  # make contiguous, correct dtype
+        fake_img = nib.Nifti1Image(fake_vol_np, affine=nii.affine)
+        nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
 
+        img = nib.load(os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
+        print(img.get_fdata().shape, img.get_fdata().dtype, flush=True)
         model.train()
 
     def save_final_grid(self):
