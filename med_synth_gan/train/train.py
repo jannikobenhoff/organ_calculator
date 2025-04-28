@@ -373,7 +373,9 @@ def main(argv):
     )
     checkpoint_saver = SaveBestModel(output_dir=output_dir+"/checkpoints")
 
-    train_loader = make_loader(dim, args.ct_dir, args.mri_dir,
+    train_loader = make_loader(dim,
+                               ct_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/",
+                               mri_dir="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/",
                                batch=args.batch_size)
 
     best_g_loss = float('inf')
