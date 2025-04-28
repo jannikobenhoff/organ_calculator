@@ -18,14 +18,13 @@ class CtMri3DDataset(Dataset):
         ct_dir:  str,
         mri_dir: str,
         out_size: tuple[int, int, int] = (128, 128, 128),
-        ct_limit: int | None = 50,          # keep your “balance” heuristic
+        ct_limit: int = 50,          # keep your “balance” heuristic
     ):
         super().__init__()
         self.ct_paths  = sorted(glob.glob(os.path.join(ct_dir,  '*.nii*')))
         self.mri_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
 
-        if ct_limit is not None:
-            self.ct_paths = self.ct_paths[:ct_limit]
+        self.ct_paths = self.ct_paths[:ct_limit]
 
         # lazy-load – keep headers only, load ndarray when actually needed
         self.ct_imgs  = [nib.load(p) for p in self.ct_paths]
