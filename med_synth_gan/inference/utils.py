@@ -35,7 +35,7 @@ def png_slices_to_nifti(png_folder, output_nifti, reference_nifti_path):
     volume_array = np.rot90(volume_array, k=-1, axes=(0, 1))
 
     # Switch coronal and sagittal axes
-    volume_array = np.transpose(volume_array, (1, 0, 2))
+    #volume_array = np.transpose(volume_array, (1, 0, 2))
 
     # Load original affine/header from CT reference
     original_nifti = nib.load(reference_nifti_path)
