@@ -82,11 +82,14 @@ class VolumeInference:
 
         model.eval()
         with torch.no_grad():
-            fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0][0]   # → 1×D×H×W
+            fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0]  # (1, D, H, W)
 
         # ---------- save NIfTI ----------
-        fake_vol_np = fake_vol.cpu().numpy().astype('float32')  # make contiguous, correct dtype
-        fake_img = nib.Nifti1Image(fake_vol_np, affine=nii.affine)
+        fake_vol = fake_vol.squeeze(0)
+        fake_arr = fake_vol.cpu().numpy().astype("float32")
+
+        # save
+        fake_img = nib.Nifti1Image(fake_arr, affine=nii.affine)
         nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
 
         img = nib.load(os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
