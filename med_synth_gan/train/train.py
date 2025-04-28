@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.ct_mri_2d_dataset import CtMri2DDataset
 from med_synth_gan.dataset.ct_mri_3d_dataset import CtMri3DDataset
+from med_synth_gan.train.utils import save_debug_images
 from med_synth_gan.models.models import UNet
 from med_synth_gan.train.saver import SaveBestModel
 from med_synth_gan.models.cycle_gan import Discriminator
@@ -369,7 +370,8 @@ def main(argv):
     inferencer = VolumeInference(
         test_volume_path="/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTs/AMOS_CT_2022_000001_0000.nii.gz",
         output_dir=output_dir,
-        device=device
+        device=device,
+        dim=dim
     )
     checkpoint_saver = SaveBestModel(output_dir=output_dir+"/checkpoints")
 
@@ -418,22 +420,12 @@ def main(argv):
                 'best_g': f"{best_g_loss:.4f}",
             }, refresh=False)
 
-            if False and batch_idx % 100 == 0:
-                vutils.save_image(
-                    real_mri,
-                    f"mri_train_slice{batch_idx}.png",
-                    normalize=True
-                )
-                vutils.save_image(
-                    real_ct,
-                    f"ct_train_slice{batch_idx}.png",
-                    normalize=True
-                )
+            if batch_idx % 100 == 0:
+                save_debug_images(real_ct, real_mri, batch_idx, dim)
 
-        continue
         # Calculate final epoch averages
-        avg_g_loss = epoch_g_loss / len(train_dataloader)
-        avg_d_loss = epoch_d_loss / len(train_dataloader)
+        avg_g_loss = epoch_g_loss / len(train_loader)
+        avg_d_loss = epoch_d_loss / len(train_loader)
 
         # Update best loss
         if avg_g_loss < best_g_loss:
