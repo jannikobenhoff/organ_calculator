@@ -12,9 +12,12 @@ def save_debug_images(real_ct, real_mri, step, dim):
                           f"ct_train_slice{step}.png",
                           normalize=True)
     else:                                     # 3-D → pick middle slice
-        mid = real_ct.shape[2] // 2  # D // 2
-        ct_mid = real_ct[0, :, mid, :, :]  # 1 × H × W
-        mri_mid = real_mri[0, :, mid, :, :]  # 1 × H × W
+        mid = real_ct.shape[4] // 2  # middle slice along axis 4 (W)
+        ct_mid = real_ct[0, :, :, :, mid]  # 1 × H × D   → still C×H×W after squeeze
+        mri_mid = real_mri[0, :, :, :, mid]
+
+        # ct_mid = torch.rot90(ct_mid, k=1, dims=[1, 2])
+        # mri_mid = torch.rot90(mri_mid, k=1, dims=[1, 2])
 
         vutils.save_image(mri_mid,
                           f"mri_train_slice{step}.png",
