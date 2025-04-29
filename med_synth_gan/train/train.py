@@ -252,7 +252,7 @@ def parse_args(argv):
     parser.add_argument(
         "-e",
         "--epochs",
-        default=4,
+        default=50,
         type=int,
         help="Number of epochs (default: %(default)s)",
     )
@@ -441,7 +441,7 @@ def main(argv):
         progress_bar.close()
 
     # Save final grid
-    inferencer.save_final_grid()
+    # inferencer.save_final_grid()
 
 
 if __name__ == "__main__":

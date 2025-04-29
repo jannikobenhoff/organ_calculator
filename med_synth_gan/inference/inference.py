@@ -93,7 +93,7 @@ class VolumeInference:
         nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
         # nib.save(fake_img, os.path.join(self.outdir, f"fake_mri_{epoch}.nii.gz"))
 
-        mid = fake_vol.shape[1] // 2
+        mid = fake_vol.shape[0] // 2
         self._save_png(fake_vol[:, mid], os.path.join(epoch_dir, "fake_mid.png"))
         self._save_png(vol[:, mid], os.path.join(epoch_dir, "ct_mid.png"))
 
