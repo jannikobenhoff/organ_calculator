@@ -49,7 +49,7 @@ class CtMri3DDataset(Dataset):
         vol = F.interpolate(vol, size=size, mode="trilinear",
                             align_corners=False, antialias=False)
         # rotate
-        vol = torch.rot90(vol, k=1, dims=[-2, -1])
+        # vol = torch.rot90(vol, k=1, dims=[-2, -1])
         return vol[0]  # drop batch dim → 1×D×H×W
 
     # ----------------------------------------------------------
