@@ -32,9 +32,9 @@ class VolumeInference:
     # -----------------------------------------------
     def run_inference(self, model, epoch):
         epoch_dir = os.path.join(self.outdir, f"epoch_{epoch}")
+        os.makedirs(epoch_dir, exist_ok=True)
 
         if self.dim == "2d":
-            os.makedirs(epoch_dir, exist_ok=True)
             self._run_2d(model, epoch_dir, epoch)
         else:
             self._run_3d(model, epoch_dir, epoch)
@@ -90,8 +90,8 @@ class VolumeInference:
 
         affine = np.eye(4, dtype="float32")  # 1 mm isotropic voxels
         fake_img = nib.Nifti1Image(fake_arr, affine)
-        # nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
-        nib.save(fake_img, os.path.join(self.outdir, f"fake_mri_{epoch}.nii.gz"))
+        nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
+        # nib.save(fake_img, os.path.join(self.outdir, f"fake_mri_{epoch}.nii.gz"))
 
         mid = fake_vol.shape[1] // 2
         self._save_png(fake_vol[:, mid], os.path.join(epoch_dir, "fake_mid.png"))
