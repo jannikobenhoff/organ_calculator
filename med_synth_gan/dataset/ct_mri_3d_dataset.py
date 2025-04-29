@@ -48,6 +48,8 @@ class CtMri3DDataset(Dataset):
         vol = torch.from_numpy(vol).unsqueeze(0).unsqueeze(0)          # 1×1×Z×Y×X
         vol = F.interpolate(vol, size=size, mode="trilinear",
                             align_corners=False, antialias=False)
+        # rotate
+        vol = torch.rot90(vol, k=1, dims=[-2, -1])
         return vol[0]  # drop batch dim → 1×D×H×W
 
     # ----------------------------------------------------------
