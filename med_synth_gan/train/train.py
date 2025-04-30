@@ -262,11 +262,11 @@ def parse_args(argv):
         default=0,#1e-4,#1e-7,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
-    ) # hab zwei runs drinne
+    )
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=5e-5 , # 1e-5
+        default=1e-4 , # 1e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -405,10 +405,10 @@ def main(argv):
             epoch_g_loss += loss_G
 
             # Discriminator update
-            if batch_idx % 2 == 0:
-                loss_D = model.discriminator_step(real_ct, real_mri)
-                epoch_d_loss += loss_D
-                avg_d = epoch_d_loss / (batch_idx + 1)
+            # if batch_idx % 2 == 0:
+            loss_D = model.discriminator_step(real_ct, real_mri)
+            epoch_d_loss += loss_D
+            avg_d = epoch_d_loss / (batch_idx + 1)
 
             # Calculate running averages
             avg_g = epoch_g_loss / (batch_idx + 1)
