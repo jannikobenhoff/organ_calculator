@@ -48,11 +48,23 @@ class CtMri3DDataset(Dataset):
         vol = torch.from_numpy(vol).unsqueeze(0).unsqueeze(0)          # 1×1×Z×Y×X
         vol = F.interpolate(vol, size=size, mode="trilinear",
                             align_corners=False, antialias=False)
-        # rotate
-        # vol = torch.rot90(vol, k=1, dims=[-2, -1])
         return vol[0]  # drop batch dim → 1×D×H×W
 
-    # ----------------------------------------------------------
+    def orient_ct(self, vol: torch.Tensor) -> torch.Tensor:
+        """
+        vol: 1×D×H×W  → rotate 90° CCW on each axial slice.
+        Returns 1×D×W×H (H and W swapped – fine for the network).
+        """
+        return torch.rot90(vol, k=1, dims=[-2, -1])
+
+    def orient_mri(self, vol: torch.Tensor) -> torch.Tensor:
+        """
+        Same as orient_ct plus left-right flip ⇒ match 2-D rule.
+        Output shape: 1×D×W×H
+        """
+        vol = torch.rot90(vol, k=1, dims=[-2, -1])
+        return torch.flip(vol, dims=[-1])
+
     def __len__(self):
         # arbitrarily follow the longer of the two lists
         return max(len(self.ct_paths), len(self.mri_paths))
@@ -63,12 +75,14 @@ class CtMri3DDataset(Dataset):
         ct_idx  = idx % len(self.ct_paths)
         ct_vol  = self._load_and_resample(self.ct_imgs[ct_idx],
                                           self.out_size)
-        ct_vol  = self._ct_contrast(ct_vol)    # your custom CT transform
+        ct_vol = self.orient_ct(ct_vol)
+        ct_vol  = self._ct_contrast(ct_vol)
 
         # ----------- MRI (random) ----------
         mri_idx = random.randint(0, len(self.mri_paths)-1)
         mri_vol = self._load_and_resample(self.mri_imgs[mri_idx],
                                           self.out_size)
+        mri_vol = self.orient_mri(mri_vol)
         mri_vol = self._mri_contrast(mri_vol, self.mri_stats[mri_idx])
 
         return ct_vol, mri_vol
