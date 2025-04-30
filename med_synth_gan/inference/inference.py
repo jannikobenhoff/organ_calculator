@@ -70,7 +70,7 @@ class VolumeInference:
         # grid update (middle third slice of stack)
         if fake_stack:
             mid = len(fake_stack) // 3
-            self.middle_slices.append(ct_stack[mid][0].cpu())   # GT CT
+            # self.middle_slices.append(ct_stack[mid][0].cpu())   # GT CT
             self.middle_slices.append(fake_stack[mid][0].cpu()) # Fake MRI
         model.train()
 
@@ -98,7 +98,7 @@ class VolumeInference:
         self._save_png(mri_mid, os.path.join(epoch_dir, "fake_mid.png"))
         self._save_png(ct_mid, os.path.join(epoch_dir, "ct_mid.png"))
 
-        self.middle_slices.extend([ct_mid.cpu(), mri_mid.cpu()])
+        self.middle_slices.append(mri_mid.cpu())
         model.train()
 
     def save_final_grid(self):
