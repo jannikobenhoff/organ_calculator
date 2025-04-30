@@ -76,29 +76,29 @@ class VolumeInference:
 
     def _run_3d(self, model, epoch_dir, epoch):
         vol = load_and_resample(nib.load(self.path), size=(256, 256, 96))
-        vol = orient_ct(vol)
         vol = contrast_transform_ct_3d(vol).to(self.device)
 
-        model.eval()
         with torch.no_grad():
-            fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0]
+            fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0]  # 1×1×D×H×W
 
-        fake_vol = fake_vol.squeeze()  # D×H×W
+        fake_vol = fake_vol.squeeze(0).squeeze(0)  # D×H×W
         fake_arr = fake_vol.cpu().numpy().astype("float32")
 
-        affine = np.eye(4, dtype="float32")  # 1 mm isotropic voxels
-        fake_img = nib.Nifti1Image(fake_arr, affine)
-        nib.save(fake_img, os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
-        # nib.save(fake_img, os.path.join(self.outdir, f"fake_mri_{epoch}.nii.gz"))
+        nib.save(nib.Nifti1Image(fake_arr, np.eye(4, dtype="float32")),
+                 os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
 
-        mid = fake_vol.shape[0] // 2
-        self._save_png(fake_vol[:, mid], os.path.join(epoch_dir, "fake_mid.png"))
-        self._save_png(vol[:, mid], os.path.join(epoch_dir, "ct_mid.png"))
+        # ---------- save middle axial slice ----------
+        mid = fake_vol.shape[-1] // 2  # middle of W axis
+        ct_mid = vol[0, :, :, mid].unsqueeze(0)  # 1×H×D
+        mri_mid = fake_vol[:, :, mid].unsqueeze(0)  # 1×H×D
 
-        # keep for final grid
-        self.middle_slices.append(vol[:, mid].cpu())
-        self.middle_slices.append(fake_vol[:, mid].cpu())
+        ct_mid = ct_mid.permute(0, 2, 1)  # 1×H×W
+        mri_mid = mri_mid.permute(0, 2, 1)
 
+        self._save_png(mri_mid, os.path.join(epoch_dir, "fake_mid.png"))
+        self._save_png(ct_mid, os.path.join(epoch_dir, "ct_mid.png"))
+
+        self.middle_slices.extend([ct_mid.cpu(), mri_mid.cpu()])
         model.train()
 
     def save_final_grid(self):

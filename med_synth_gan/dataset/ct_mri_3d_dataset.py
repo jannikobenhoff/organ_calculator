@@ -46,17 +46,13 @@ class CtMri3DDataset(Dataset):
     # ----------------------------------------------------------
     def __getitem__(self, idx):
         # ----------- CT ----------
-        ct_idx  = idx % len(self.ct_paths)
-        ct_vol  = load_and_resample(self.ct_imgs[ct_idx],
-                                          self.out_size)
-        ct_vol = orient_ct(ct_vol)
-        ct_vol  = self._ct_contrast(ct_vol)
+        ct_idx = idx % len(self.ct_paths)
+        ct_vol = load_and_resample(self.ct_imgs[ct_idx], self.out_size)
+        ct_vol = self._ct_contrast(ct_vol)
 
         # ----------- MRI (random) ----------
-        mri_idx = random.randint(0, len(self.mri_paths)-1)
-        mri_vol = load_and_resample(self.mri_imgs[mri_idx],
-                                          self.out_size)
-        mri_vol = orient_mri(mri_vol)
+        mri_idx = random.randint(0, len(self.mri_paths) - 1)
+        mri_vol = load_and_resample(self.mri_imgs[mri_idx], self.out_size)
         mri_vol = self._mri_contrast(mri_vol, self.mri_stats[mri_idx])
 
         return ct_vol, mri_vol
