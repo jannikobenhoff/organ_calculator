@@ -20,8 +20,8 @@ def save_debug_images(real_ct, real_mri, step, dim):
         # mri_mid = torch.rot90(mri_mid, k=1, dims=[1, 2])
 
         vutils.save_image(mri_mid,
-                          f"mri_train_slice{step}.png",
+                          f"mri_3dtrain_slice{step}.png",
                           normalize=True)
         vutils.save_image(ct_mid,
-                          f"ct_train_slice{step}.png",
+                          f"ct_3dtrain_slice{step}.png",
                           normalize=True)

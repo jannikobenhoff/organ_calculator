@@ -6,6 +6,7 @@ import torchvision.transforms as T
 import nibabel as nib
 import torchvision.utils as vutils
 from PIL import Image
+import torch.nn.functional as F
 
 contrast_transform_ct = T.Compose([
         T.Resize((256, 256)),
@@ -20,6 +21,32 @@ contrast_transform_mri = T.Compose([
         T.Lambda(lambda x: torch.clamp(x, 0, 500)),
         T.Lambda(lambda x: x / 500),
 ])
+
+
+def load_and_resample(nib_img, size, order=1):
+    """Read full volume → resample to `size` with trilinear (order=1)."""
+    vol = nib_img.get_fdata(dtype=np.float32)  # (Z,Y,X)
+    # bring to (1, D, H, W) for F.interpolate
+    vol = torch.from_numpy(vol).unsqueeze(0).unsqueeze(0)  # 1×1×Z×Y×X
+    vol = F.interpolate(vol, size=size, mode="trilinear",
+                        align_corners=False, antialias=False)
+    return vol[0]  # drop batch dim → 1×D×H×W
+
+def orient_ct(vol: torch.Tensor) -> torch.Tensor:
+    """
+    vol: 1×D×H×W  → rotate 90° CCW on each axial slice.
+    Returns 1×D×W×H (H and W swapped – fine for the network).
+    """
+    return torch.rot90(vol, k=1, dims=[-2, -1])
+
+
+def orient_mri(vol: torch.Tensor) -> torch.Tensor:
+    """
+    Same as orient_ct plus left-right flip ⇒ match 2-D rule.
+    Output shape: 1×D×W×H
+    """
+    vol = torch.rot90(vol, k=1, dims=[-2, -1])
+    return torch.flip(vol, dims=[-1])
 
 def contrast_transform_ct_3d(x: torch.Tensor, out_size=(256,256,96)):
     """

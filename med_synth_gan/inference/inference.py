@@ -8,7 +8,7 @@ from med_synth_gan.inference.utils import png_slices_to_nifti
 import os, shutil, nibabel as nib, torch, torchvision.utils as vutils
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.single_2d_dataset import SingleVolume2DDataset
-from med_synth_gan.dataset.utils import contrast_transform_ct_3d
+from med_synth_gan.dataset.utils import contrast_transform_ct_3d, orient_mri, orient_ct, load_and_resample
 from torchvision.transforms.functional import to_pil_image
 
 class VolumeInference:
@@ -74,16 +74,14 @@ class VolumeInference:
             self.middle_slices.append(fake_stack[mid][0].cpu()) # Fake MRI
         model.train()
 
-    # =============== 3-D path ============================
     def _run_3d(self, model, epoch_dir, epoch):
-        # ---------- load, preprocess volume ----------
-        nii = nib.load(self.path)
-        vol = torch.from_numpy(nii.get_fdata(dtype='float32')).unsqueeze(0)  # 1×D×H×W
-        vol = contrast_transform_ct_3d(vol, out_size=(256,256,96)).to(self.device)
+        vol = load_and_resample(nib.load(self.path), size=(256, 256, 96))
+        vol = orient_ct(vol)
+        vol = contrast_transform_ct_3d(vol).to(self.device)
 
         model.eval()
         with torch.no_grad():
-            fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0]    # 1×1×D×H×W
+            fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0]
 
         fake_vol = fake_vol.squeeze()  # D×H×W
         fake_arr = fake_vol.cpu().numpy().astype("float32")
