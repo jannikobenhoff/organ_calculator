@@ -75,8 +75,8 @@ class MedSynthGANModule(nn.Module):
         self.G_ct2mri = UNet(dim=dim)
         self.D_mri = Discriminator(dim=dim)
 
-        self.opt_g = torch.optim.AdamW(self.G_ct2mri.parameters(), lr=lr)
-        self.opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=lr_d)
+        self.opt_g = torch.optim.AdamW(self.G_ct2mri.parameters(), lr=lr, weight_decay=5e-2)
+        self.opt_d = torch.optim.AdamW(self.D_mri.parameters(), lr=lr_d, weight_decay=5e-2)
 
         # Loss functions
         if loss_type == "bce":
@@ -259,7 +259,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=1e-5,#1e-4,#1e-7,
+        default=0,#1e-4,#1e-7,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )

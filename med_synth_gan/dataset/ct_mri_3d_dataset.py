@@ -1,10 +1,9 @@
-# med_synth_gan/dataset/ct_mri_3d.py
 import os, glob, random
 import nibabel as nib
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from med_synth_gan.dataset.utils import contrast_transform_ct_3d, orient_mri, orient_ct, load_and_resample
+from med_synth_gan.dataset.utils import contrast_transform_ct_3d, load_and_resample
 
 class CtMri3DDataset(Dataset):
     """
@@ -40,10 +39,8 @@ class CtMri3DDataset(Dataset):
         ]
 
     def __len__(self):
-        # arbitrarily follow the longer of the two lists
         return max(len(self.ct_paths), len(self.mri_paths))
 
-    # ----------------------------------------------------------
     def __getitem__(self, idx):
         # ----------- CT ----------
         ct_idx = idx % len(self.ct_paths)

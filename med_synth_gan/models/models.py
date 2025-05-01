@@ -7,13 +7,13 @@ import torch.nn as nn
 LAYER_LOOKUP = {
     "2d": dict(
         Conv=nn.Conv2d,
-        Norm=nn.InstanceNorm2d,
-        Pool=lambda : nn.MaxPool2d(2),
+        Norm=lambda: nn.InstanceNorm2d(affine=True),# TODO
+        Pool=lambda: nn.MaxPool2d(2),
         upsample_mode="bilinear",
     ),
     "3d": dict(
         Conv=nn.Conv3d,
-        Norm=nn.InstanceNorm3d,
+        Norm=lambda: nn.InstanceNorm3d(affine=True),
         Pool=lambda : nn.MaxPool3d(2),
         upsample_mode="trilinear",
     ),

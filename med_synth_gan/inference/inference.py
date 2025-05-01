@@ -1,15 +1,9 @@
-import os
-import torch
-from torch.utils.data import DataLoader
-import torchvision.utils as vutils
 import numpy as np
-from med_synth_gan.dataset.single_2d_dataset import SingleVolume2DDataset
 from med_synth_gan.inference.utils import png_slices_to_nifti
 import os, shutil, nibabel as nib, torch, torchvision.utils as vutils
 from torch.utils.data import DataLoader
 from med_synth_gan.dataset.single_2d_dataset import SingleVolume2DDataset
-from med_synth_gan.dataset.utils import contrast_transform_ct_3d, orient_mri, orient_ct, load_and_resample
-from torchvision.transforms.functional import to_pil_image
+from med_synth_gan.dataset.utils import contrast_transform_ct_3d, load_and_resample
 
 class VolumeInference:
     """
