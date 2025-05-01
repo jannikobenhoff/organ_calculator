@@ -97,7 +97,7 @@ class MedSynthGANModule(nn.Module):
                 K.RandomResizedCrop(size=(H, W), scale=(0.8, 1.0), p=0.3),
                 K.RandomPerspective(distortion_scale=0.5, p=0.3),
             ).cuda()
-        else:  # 3-D – either disable or switch to TorchIO / MONAI
+        else:
             self.aug = nn.Identity()
 
     def forward(self, ct_image):

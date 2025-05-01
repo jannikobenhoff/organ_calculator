@@ -34,8 +34,8 @@ def save_debug_images(real_ct, real_mri, step, dim):
         mri_mid = real_mri[0, :, :, :, mid]
 
         # permute to C × H × W  (W = D here)
-        ct_mid = ct_mid.permute(0, 2, 1)
-        mri_mid = mri_mid.permute(0, 2, 1)
+        #ct_mid = ct_mid.permute(0, 2, 1)
+        #mri_mid = mri_mid.permute(0, 2, 1)
 
         vutils.save_image(mri_mid,
                           f"mri_3dtrain_slice{step}.png",

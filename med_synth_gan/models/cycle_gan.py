@@ -71,11 +71,11 @@ class GeneratorResNet(nn.Module):
 LAYER_LOOKUP = {
     "2d": dict(
         Conv = nn.Conv2d,
-        Norm = nn.InstanceNorm2d,
+        Norm =nn.InstanceNorm2d,
     ),
     "3d": dict(
         Conv = nn.Conv3d,
-        Norm = nn.InstanceNorm3d,
+        Norm =nn.InstanceNorm3d,
     ),
 }
 
