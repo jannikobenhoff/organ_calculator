@@ -278,7 +278,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lambda_grad",
         "--lambda-grad",
-        default=0,#1e-4,#1e-7,
+        default=1e-6,#1e-4,#1e-7,
         type=float,
         help="Weight for total-variation (default: %(default)s)",
     )
@@ -292,7 +292,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=2e-4,  # should be larger than Generator for MSE 1e-5
+        default=1e-4,  # should be larger than Generator for MSE 1e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
