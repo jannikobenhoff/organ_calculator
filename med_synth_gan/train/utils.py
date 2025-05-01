@@ -56,8 +56,8 @@ if __name__ == "__main__":
     ct_paths = sorted(glob.glob(os.path.join(ct_dir, '*.nii*')))
     mri_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
 
-    ct_imgs = [nib.load(p) for p in ct_paths]
-    mri_imgs = [nib.load(p) for p in mri_paths]
+    ct_imgs = [nib.load(p) for p in ct_paths[:5]]
+    mri_imgs = [nib.load(p) for p in mri_paths[:5]]
 
     print("CT:", flush=True)
     for ct in ct_imgs:

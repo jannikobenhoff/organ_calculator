@@ -17,7 +17,8 @@ import random
 import kornia.augmentation as K
 from tqdm import tqdm
 import torchvision.utils as vutils
-
+import torch
+import torchio as tio
 
 def random_flip_rot_crop(batch,):
     B, C, H, W = batch.shape
@@ -98,7 +99,21 @@ class MedSynthGANModule(nn.Module):
                 K.RandomPerspective(distortion_scale=0.5, p=0.3),
             ).cuda()
         else:
-            self.aug = nn.Identity()
+            self.aug = tio.Compose([
+                tio.RandomFlip(axes=('LR', 'AP', 'IS'), p=0.5),
+                # Random affine for rotations, scaling, and optional translation
+                # - degrees: tuple (max_angle_x, max_angle_y, max_angle_z) in degrees
+                # - scales: tuple (min_scale, max_scale) uniformly applied to each axis
+                # - translation: max translation in mm per axis (here disabled with 0)
+                # - isotropic: if True, the same scale is used for all axes
+                tio.RandomAffine(
+                    degrees=(15, 15, 15),
+                    scales=(0.9, 1.1),
+                    translation=(0, 0, 0),
+                    isotropic=False,
+                    p=0.75,
+                ),
+            ])
 
     def forward(self, ct_image):
         return self.G_ct2mri(ct_image)
@@ -123,8 +138,8 @@ class MedSynthGANModule(nn.Module):
                 fake_mri = self.G_ct2mri(real_ct[:2])[0].detach()
             else:
                 fake_mri = self.G_ct2mri(real_ct[:4])[0].detach()
-            fake_mri = self.aug(fake_mri)
 
+            fake_mri = self.aug(fake_mri)
             real_mri = self.aug(real_mri)
 
             pred_real = self.D_mri(real_mri)
