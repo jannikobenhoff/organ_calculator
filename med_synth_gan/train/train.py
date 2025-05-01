@@ -140,8 +140,8 @@ class MedSynthGANModule(nn.Module):
                 fake_mri = self.G_ct2mri(real_ct[:4])[0].detach()
 
             # TODO
-            fake_mri = self.aug(fake_mri.squeeze())
-            real_mri = self.aug(real_mri.squeeze())
+            fake_mri = self.aug(fake_mri.squeeze().unsqueeze(0))
+            real_mri = self.aug(real_mri.squeeze().unsqueeze(0))
 
             pred_real = self.D_mri(real_mri)
             loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real) * 1)  # Label smoothing
