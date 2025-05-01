@@ -1,4 +1,8 @@
 import torchvision.utils as vutils
+import os
+import glob
+import nibabel as nib
+import numpy as np
 
 def save_debug_images(real_ct, real_mri, step, dim):
     """
@@ -43,3 +47,29 @@ def save_debug_images(real_ct, real_mri, step, dim):
         vutils.save_image(ct_mid,
                           f"ct_3dtrain_slice{step}.png",
                           normalize=True)
+
+
+if __name__ == "__main__":
+    ct_dir = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5008_AMOS_CT_2022/imagesTr/"
+    mri_dir = "/midtier/sablab/scratch/data/jannik_data/synth_data/Dataset5009_AMOS_MR_2022/t2Axial/"
+
+    ct_paths = sorted(glob.glob(os.path.join(ct_dir, '*.nii*')))
+    mri_paths = sorted(glob.glob(os.path.join(mri_dir, '*.nii*')))
+
+    ct_imgs = [nib.load(p) for p in ct_paths]
+    mri_imgs = [nib.load(p) for p in mri_paths]
+
+    print("CT:", flush=True)
+    for ct in ct_imgs:
+        volume = ct.get_fdata(dtype=np.float32)
+
+        original_shape = volume.shape
+        print("Shape:", original_shape, flush=True)
+        print("Orientation:", ct.affine, flush=True)
+
+    print("MRI:", flush=True)
+    for mri in mri_imgs:
+        volume = mri.get_fdata(dtype=np.float32)
+        original_shape = volume.shape
+        print("Shape:", original_shape, flush=True)
+        print("Orientation:", mri.affine, flush=True)
