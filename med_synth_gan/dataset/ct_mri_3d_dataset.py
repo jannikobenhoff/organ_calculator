@@ -16,7 +16,7 @@ class CtMri3DDataset(Dataset):
         ct_dir:  str,
         mri_dir: str,
         out_size: tuple[int, int, int] = (256,256,96),
-        ct_limit: int = 50,          # keep your “balance” heuristic
+        ct_limit: int = 100,          # keep your “balance” heuristic
     ):
         super().__init__()
         self.ct_paths  = sorted(glob.glob(os.path.join(ct_dir,  '*.nii*')))
