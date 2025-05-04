@@ -3,7 +3,7 @@ import nibabel as nib
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from med_synth_gan.dataset.utils import contrast_transform_ct_3d, load_and_resample
+from med_synth_gan.dataset.utils import contrast_transform_ct_3d, load_and_resample, reorient_to_ras
 
 class CtMri3DDataset(Dataset):
     """
@@ -25,8 +25,10 @@ class CtMri3DDataset(Dataset):
         self.ct_paths = self.ct_paths[:ct_limit]
 
         # lazy-load – keep headers only, load ndarray when actually needed
-        self.ct_imgs  = [nib.load(p) for p in self.ct_paths]
-        self.mri_imgs = [nib.load(p) for p in self.mri_paths]
+        # self.ct_imgs  = [nib.load(p) for p in self.ct_paths]
+        # self.mri_imgs = [nib.load(p) for p in self.mri_paths]
+        self.ct_imgs = [reorient_to_ras(nib.load(p)) for p in self.ct_paths]
+        self.mri_imgs = [reorient_to_ras(nib.load(p)) for p in self.mri_paths]
 
         self.out_size = out_size  # final (D,H,W); keep power-of-2 for UNet
 
@@ -51,6 +53,9 @@ class CtMri3DDataset(Dataset):
         mri_idx = random.randint(0, len(self.mri_paths) - 1)
         mri_vol = load_and_resample(self.mri_imgs[mri_idx], self.out_size)
         mri_vol = self._mri_contrast(mri_vol, self.mri_stats[mri_idx])
+
+        ct_vol = ct_vol.unsqueeze(0)
+        mri_vol = mri_vol.unsqueeze(0)
 
         return ct_vol, mri_vol
 

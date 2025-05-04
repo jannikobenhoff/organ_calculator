@@ -23,6 +23,20 @@ contrast_transform_mri = T.Compose([
 ])
 
 
+def reorient_to_ras(img: nib.Nifti1Image) -> nib.Nifti1Image:
+    """
+    Return a *new* NIfTI re‑oriented to RAS (Right‑Anterior‑Superior).
+    Data array is copied; affine is updated accordingly.
+    """
+    ornt_current = nib.orientations.io_orientation(img.affine)
+    ornt_ras     = nib.orientations.axcodes2ornt(("R", "A", "S"))
+    transform    = nib.orientations.ornt_transform(ornt_current, ornt_ras)
+
+    data_ras     = nib.orientations.apply_orientation(img.get_fdata(), transform)
+    affine_ras   = img.affine @ nib.orientations.inv_ornt_aff(transform, img.shape)
+
+    return nib.Nifti1Image(data_ras, affine_ras, header=img.header.copy())
+
 def load_and_resample(nib_img, size, order=1):
     """Read full volume → resample to `size` with trilinear (order=1)."""
     vol = nib_img.get_fdata(dtype=np.float32)  # (Z,Y,X)
