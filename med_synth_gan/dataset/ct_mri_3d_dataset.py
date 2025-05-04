@@ -54,9 +54,6 @@ class CtMri3DDataset(Dataset):
         mri_vol = load_and_resample(self.mri_imgs[mri_idx], self.out_size)
         mri_vol = self._mri_contrast(mri_vol, self.mri_stats[mri_idx])
 
-        ct_vol = ct_vol.unsqueeze(0)
-        mri_vol = mri_vol.unsqueeze(0)
-
         return ct_vol, mri_vol
 
     @staticmethod

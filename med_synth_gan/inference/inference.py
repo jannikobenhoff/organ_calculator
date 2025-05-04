@@ -83,15 +83,15 @@ class VolumeInference:
                  os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
 
         # ---------- save middle axial slice ----------
-        # mid = fake_vol.shape[-1] // 2  # middle of W axis
-        # ct_mid = vol[0, :, :, mid].unsqueeze(0)  # 1×H×D
-        # mri_mid = fake_vol[:, :, mid].unsqueeze(0)  # 1×H×D
-        mid = fake_vol.shape[0] // 2  # middle slice along D
-        ct_mid = vol[0, mid, :, :].unsqueeze(0)  # (1, H, W)
-        mri_mid = fake_vol[mid, :, :].unsqueeze(0)  # (1, H, W)
+        mid = fake_vol.shape[-1] // 2  # middle of W axis
+        ct_mid = vol[0, :, :, mid].unsqueeze(0)  # 1×H×D
+        mri_mid = fake_vol[:, :, mid].unsqueeze(0)  # 1×H×D
+        # mid = fake_vol.shape[0] // 2  # middle slice along D
+        # ct_mid = vol[0, mid, :, :].unsqueeze(0)  # (1, H, W)
+        # mri_mid = fake_vol[mid, :, :].unsqueeze(0)  # (1, H, W)
 
-        # ct_mid = ct_mid.permute(0, 2, 1)  # 1×H×W
-        # mri_mid = mri_mid.permute(0, 2, 1)
+        ct_mid = ct_mid.permute(0, 2, 1)  # 1×H×W
+        mri_mid = mri_mid.permute(0, 2, 1)
 
         self._save_png(mri_mid.cpu(), os.path.join(epoch_dir, "fake_mid.png"))
         self._save_png(ct_mid.cpu(), os.path.join(epoch_dir, "ct_mid.png"))
