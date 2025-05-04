@@ -139,7 +139,7 @@ class MedSynthGANModule(nn.Module):
             else:
                 fake_mri = self.G_ct2mri(real_ct[:4])[0].detach()
 
-            # TODO
+            # TODO: 2d - 3d no unsqueeze needed i think
             fake_mri = fake_mri.squeeze().unsqueeze(0).cpu()
             fake_mri = self.aug(fake_mri).cuda()
 
@@ -285,14 +285,14 @@ def parse_args(argv):
     parser.add_argument(
         "-lr",
         "--learning-rate",
-        default=5e-5 , # 1e-5
+        default=1e-5 , # 1e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=1e-4,  # should be larger than Generator for MSE 1e-5
+        default=5e-5,  # should be larger than Generator for MSE 1e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
