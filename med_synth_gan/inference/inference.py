@@ -76,7 +76,7 @@ class VolumeInference:
         if was_training:
             model.train()
 
-        fake_vol = fake_vol.squeeze(0)
+        fake_vol = fake_vol.squeeze(0).squeeze(0)
         fake_arr = fake_vol.cpu().numpy().astype("float32")
 
         nib.save(nib.Nifti1Image(fake_arr, np.eye(4, dtype="float32")),
