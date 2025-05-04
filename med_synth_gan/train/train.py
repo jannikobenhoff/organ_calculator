@@ -427,7 +427,7 @@ def main(argv):
 
             # Generator update
             loss_G = model.generator_step(real_ct)
-            epoch_g_loss += loss_G.item()
+            epoch_g_loss += loss_G
 
             # Calculate running averages
             avg_g = epoch_g_loss / (batch_idx + 1)
