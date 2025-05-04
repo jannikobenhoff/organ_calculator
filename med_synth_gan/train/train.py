@@ -292,7 +292,7 @@ def parse_args(argv):
     parser.add_argument(
         "-lr_d",
         "--learning-rate-discriminator",
-        default=5e-5,  # should be larger than Generator for MSE 1e-5
+        default=6e-5,  # should be larger than Generator for MSE 1e-5
         type=float,
         help="Learning rate (default: %(default)s)",
     )
@@ -419,15 +419,15 @@ def main(argv):
             real_ct = real_ct.to(device)
             real_mri = real_mri.to(device)
 
+            # Discriminator update
+            if batch_idx % 2 == 0:
+                loss_D = model.discriminator_step(real_ct, real_mri)
+                epoch_d_loss += loss_D
+                avg_d = epoch_d_loss / (batch_idx + 1)
+
             # Generator update
             loss_G = model.generator_step(real_ct)
-            epoch_g_loss += loss_G
-
-            # Discriminator update
-            #if batch_idx % 2 == 0:
-            loss_D = model.discriminator_step(real_ct, real_mri)
-            epoch_d_loss += loss_D
-            avg_d = epoch_d_loss / (batch_idx + 1)
+            epoch_g_loss += loss_G.item()
 
             # Calculate running averages
             avg_g = epoch_g_loss / (batch_idx + 1)

@@ -19,11 +19,9 @@ class VolumeInference:
         self.middle_slices = []
         os.makedirs(output_dir, exist_ok=True)
 
-    # -----------------------------------------------
     def _save_png(self, tensor, fname):
         vutils.save_image(tensor.cpu(), fname, normalize=True)
 
-    # -----------------------------------------------
     def run_inference(self, model, epoch):
         epoch_dir = os.path.join(self.outdir, f"epoch_{epoch}")
         os.makedirs(epoch_dir, exist_ok=True)
@@ -33,7 +31,6 @@ class VolumeInference:
         else:
             self._run_3d(model, epoch_dir, epoch)
 
-    # =============== 2-D path (unchanged) =================
     def _run_2d(self, model, epoch_dir, epoch):
         fake_dir = os.path.join(epoch_dir, "fake_mri_slices")
         ct_dir   = os.path.join(epoch_dir, "ct_slices")
@@ -72,28 +69,34 @@ class VolumeInference:
         vol = load_and_resample(nib.load(self.path), size=(256, 256, 96))
         vol = contrast_transform_ct_3d(vol).to(self.device)
 
+        was_training = model.training
+        model.eval()
         with torch.no_grad():
             fake_vol = model.G_ct2mri(vol.unsqueeze(0))[0]  # 1×1×D×H×W
+        if was_training:
+            model.train()
 
-        fake_vol = fake_vol.squeeze(0).squeeze(0)  # D×H×W
+        fake_vol = fake_vol.squeeze(0)
         fake_arr = fake_vol.cpu().numpy().astype("float32")
 
         nib.save(nib.Nifti1Image(fake_arr, np.eye(4, dtype="float32")),
                  os.path.join(epoch_dir, f"fake_mri_{epoch}.nii.gz"))
 
         # ---------- save middle axial slice ----------
-        mid = fake_vol.shape[-1] // 2  # middle of W axis
-        ct_mid = vol[0, :, :, mid].unsqueeze(0)  # 1×H×D
-        mri_mid = fake_vol[:, :, mid].unsqueeze(0)  # 1×H×D
+        # mid = fake_vol.shape[-1] // 2  # middle of W axis
+        # ct_mid = vol[0, :, :, mid].unsqueeze(0)  # 1×H×D
+        # mri_mid = fake_vol[:, :, mid].unsqueeze(0)  # 1×H×D
+        mid = fake_vol.shape[0] // 2  # middle slice along D
+        ct_mid = vol[0, mid, :, :].unsqueeze(0)  # (1, H, W)
+        mri_mid = fake_vol[mid, :, :].unsqueeze(0)  # (1, H, W)
 
-        ct_mid = ct_mid.permute(0, 2, 1)  # 1×H×W
-        mri_mid = mri_mid.permute(0, 2, 1)
+        # ct_mid = ct_mid.permute(0, 2, 1)  # 1×H×W
+        # mri_mid = mri_mid.permute(0, 2, 1)
 
-        self._save_png(mri_mid, os.path.join(epoch_dir, "fake_mid.png"))
-        self._save_png(ct_mid, os.path.join(epoch_dir, "ct_mid.png"))
+        self._save_png(mri_mid.cpu(), os.path.join(epoch_dir, "fake_mid.png"))
+        self._save_png(ct_mid.cpu(), os.path.join(epoch_dir, "ct_mid.png"))
 
         self.middle_slices.append(mri_mid.cpu())
-        model.train()
 
     def save_final_grid(self):
         if self.middle_slices:
