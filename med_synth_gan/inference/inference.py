@@ -100,6 +100,6 @@ class VolumeInference:
 
     def save_final_grid(self):
         if self.middle_slices:
-            grid = vutils.make_grid(self.middle_slices, nrow=4, normalize=False)
+            grid = vutils.make_grid(self.middle_slices, nrow=4, normalize=True)
             vutils.save_image(grid, os.path.join(self.outdir, "middle_slices_grid.png"))
 
