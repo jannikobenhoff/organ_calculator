@@ -376,7 +376,6 @@ def main(argv):
 
     dim = "3d"
 
-    # Initialize module
     model = MedSynthGANModule(
         loss_type=args.loss_type,
         lambda_grad=args.lambda_grad,
